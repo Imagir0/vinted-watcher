@@ -128,10 +128,145 @@ async function init() {
                 await loadItems();
             } catch (_) {
             }
-        }, 15000);
+        }, 60000);
     } catch (error) {
         notice(`Erreur au chargement : ${error.message}`, true);
     }
 }
 
+$("save-search-btn").addEventListener("click", saveCurrentSearch);
+
+async function refreshSavedSearches() {
+    const data = await api("/api/saved-searches");
+    const list = $("saved-searches-list");
+    const empty = document.querySelector(".saved-searches-empty");
+
+    list.replaceChildren();
+
+    const searches = data.items || [];
+    empty.hidden = searches.length > 0;
+
+    for (const search of searches) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "saved-search-item";
+
+        const title = document.createElement("strong");
+        title.textContent = search.name;
+
+        const details = document.createElement("span");
+        details.textContent =
+            `${search.config.pages} page(s) · ` +
+            `${search.config.interval_seconds} s`;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Supprimer";
+        remove.className = "saved-search-delete";
+        remove.addEventListener("click", async event => {
+            event.stopPropagation();
+
+            if (!confirm(`Supprimer « ${search.name} » ?`)) {
+                return;
+            }
+
+            try {
+                await api(`/api/saved-searches/${search.id}`, {
+                    method: "DELETE"
+                });
+
+                await refreshSavedSearches();
+                notice("Recherche supprimée.");
+            } catch (error) {
+                notice(`Suppression impossible : ${error.message}`, true);
+            }
+        });
+
+        button.append(title, details);
+        button.addEventListener("click", async () => {
+            try {
+                const result = await api("/api/saved-searches/load", {
+                    method: "POST",
+                    body: JSON.stringify({ id: search.id })
+                });
+
+                config = result.config;
+                loadConfigIntoForm(config);
+                updateAutoButton(Boolean(result.auto_running));
+
+                $("saved-searches-menu").hidden = true;
+                $("saved-searches-btn").setAttribute("aria-expanded", "false");
+
+                notice(`Recherche chargée : ${search.name}.`);
+            } catch (error) {
+                notice(`Chargement impossible : ${error.message}`, true);
+            }
+        });
+
+        const row = document.createElement("div");
+        row.className = "saved-search-row";
+        row.append(button, remove);
+        list.append(row);
+    }
+}
+
+$("saved-searches-btn").addEventListener("click", async () => {
+    const menu = $("saved-searches-menu");
+    const opening = menu.hidden;
+
+    if (opening) {
+        try {
+            await refreshSavedSearches();
+        } catch (error) {
+            notice(`Chargement des recherches impossible : ${error.message}`, true);
+            return;
+        }
+    }
+
+    menu.hidden = !opening;
+    $("saved-searches-btn").setAttribute(
+        "aria-expanded",
+        String(opening)
+    );
+});
+
+async function saveCurrentSearch() {
+    try {
+        // Sauvegarde d'abord les paramètres actuellement présents dans le formulaire.
+        const query = currentQuery();
+        const pages = Math.max(
+            1,
+            Math.min(10, Number($("pages").value) || 2)
+        );
+        const interval = Math.max(
+            60,
+            Number($("interval_seconds").value) || 300
+        );
+        const excluded = $("excluded_keywords").value
+            .split(/\r?\n/)
+            .map(value => value.trim())
+            .filter(Boolean);
+
+        config = await api("/api/config", {
+            method: "POST",
+            body: JSON.stringify({
+                queries: [query],
+                pages,
+                interval_seconds: interval,
+                excluded_keywords: excluded
+            })
+        });
+
+        const result = await api("/api/saved-searches", {
+            method: "POST"
+        });
+
+        await refreshSavedSearches();
+        notice(`Recherche enregistrée : ${result.item.name}.`);
+    } catch (error) {
+        notice(`Enregistrement impossible : ${error.message}`, true);
+    }
+}
+
 init();
+await refreshSavedSearches();

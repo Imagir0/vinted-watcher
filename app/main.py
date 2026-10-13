@@ -38,6 +38,8 @@ class ConfigUpdate(BaseModel):
     interval_seconds: int | None = None
     excluded_keywords: list | None = None
 
+class SavedSearchLoad(BaseModel):
+    id: int
 
 @app.get("/")
 def index():
@@ -61,6 +63,50 @@ def update_config(update: ConfigUpdate):
     db.set_config(updates)
     return db.get_config() | {"auto_running": scanner.is_running()}
 
+
+@app.get("/api/saved-searches")
+def get_saved_searches():
+    return {"items": db.list_saved_searches()}
+
+
+@app.post("/api/saved-searches")
+def create_saved_search():
+    config = db.get_config()
+    saved = db.save_search(config)
+    return {"ok": True, "item": saved}
+
+
+@app.post("/api/saved-searches/load")
+def load_saved_search(data: SavedSearchLoad):
+    saved = db.get_saved_search(data.id)
+
+    if saved is None:
+        return JSONResponse(
+            {"ok": False, "error": "Recherche introuvable."},
+            status_code=404,
+        )
+
+    db.set_config(saved["config"])
+
+    return {
+        "ok": True,
+        "item": saved,
+        "config": db.get_config(),
+        "auto_running": scanner.is_running(),
+    }
+
+
+@app.delete("/api/saved-searches/{search_id}")
+def remove_saved_search(search_id: int):
+    deleted = db.delete_saved_search(search_id)
+
+    if not deleted:
+        return JSONResponse(
+            {"ok": False, "error": "Recherche introuvable."},
+            status_code=404,
+        )
+
+    return {"ok": True}
 
 @app.post("/api/scan")
 def scan_now():

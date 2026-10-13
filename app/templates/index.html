@@ -9,14 +9,38 @@
 
 <body>
 
-<header>
-    <a href="/">Vinted Watcher</a>
+<header class="site-header">
+    <a href="/" class="site-logo">Vinted Watcher</a>
 
-    <nav aria-label="Navigation principale">
+    <nav aria-label="Navigation principale" class="main-nav">
         <a href="/">Accueil</a>
         <a href="#search">Recherche</a>
         <a href="#results">Annonces</a>
     </nav>
+
+    <div class="saved-searches">
+        <button
+            id="saved-searches-btn"
+            class="saved-searches-btn"
+            type="button"
+            aria-expanded="false"
+            aria-controls="saved-searches-menu"
+        >
+            Recherches enregistrées
+            <span aria-hidden="true">▾</span>
+        </button>
+
+        <div
+            id="saved-searches-menu"
+            class="saved-searches-menu"
+            hidden
+        >
+            <p class="saved-searches-empty">
+                Aucune recherche enregistrée.
+            </p>
+            <div id="saved-searches-list"></div>
+        </div>
+    </div>
 </header>
 
 <main>
@@ -106,9 +130,6 @@
                 </div>
 
                 <div class="actions">
-                    <button class="action-button" type="submit">
-                        Enregistrer la recherche
-                    </button>
 
                     <button class="action-button secondary" type="button" id="scan-btn">
                         Lancer un scan
@@ -116,6 +137,10 @@
 
                     <button class="action-button" type="button" id="auto-btn">
                         Démarrer l'auto-scan
+                    </button>
+
+                    <button id="save-search-btn" class="action-button" type="button">
+                        Enregistrer la recherche
                     </button>
                 </div>
 
@@ -161,7 +186,7 @@
                 </div>
 
             </div>
-            
+
           <p id="notice" class="status" role="status">
               Chargement de la configuration…
           </p>
