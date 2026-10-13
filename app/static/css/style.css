@@ -650,3 +650,47 @@ textarea {
 .saved-search-delete:hover {
     background: #fff0ef;
 }
+
+.trend-up {
+    color: #b45309;
+}
+
+.trend-down {
+    color: #15803d;
+}
+
+.trend-stable {
+    color: #64748b;
+}
+
+#stat-trend-detail {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #64748b;
+}
+.statistics-bottom-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    grid-column: 1 / -1;
+}
+
+.statistics-bottom-row .stat-item {
+    min-width: 0;
+}
+
+#stat-trend-detail {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #64748b;
+}
+
+@media (max-width: 480px) {
+    .statistics-bottom-row {
+        grid-template-columns: 1fr;
+    }
+}

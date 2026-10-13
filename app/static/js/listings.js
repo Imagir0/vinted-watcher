@@ -2,10 +2,17 @@ import { $, api, money, escapeHtml } from "./api.js";
 import { renderStatistics } from "./statistics.js";
 
 let allItems = [];
+let trendData = null;
 
 export async function loadItems() {
-    const data = await api("/api/items?limit=2000");
-    allItems = data.items || [];
+    const [itemsResponse, statsResponse] = await Promise.all([
+        api("/api/items?limit=2000"),
+        api("/api/stats")
+    ]);
+
+    allItems = itemsResponse.items || [];
+    trendData = statsResponse;
+
     renderItems();
 }
 
@@ -38,18 +45,24 @@ function filteredItems() {
             return false;
         }
 
-        if (brand && !(item.brand || "")
-            .toLocaleLowerCase("fr").includes(brand)) {
+        if (
+            brand &&
+            !(item.brand || "").toLocaleLowerCase("fr").includes(brand)
+        ) {
             return false;
         }
 
-        if (min !== null &&
-            (item.price == null || Number(item.price) < min)) {
+        if (
+            min !== null &&
+            (item.price == null || Number(item.price) < min)
+        ) {
             return false;
         }
 
-        if (max !== null &&
-            (item.price == null || Number(item.price) > max)) {
+        if (
+            max !== null &&
+            (item.price == null || Number(item.price) > max)
+        ) {
             return false;
         }
 
@@ -92,7 +105,8 @@ export function renderItems() {
         `${items.length} annonce(s) affichée(s) sur ` +
         `${allItems.length} enregistrée(s)`;
 
-    renderStatistics(items);
+    // Les statistiques ne dépendent pas des filtres d'affichage locaux.
+    renderStatistics(allItems, trendData);
 
     if (!items.length) {
         $("listings").innerHTML =

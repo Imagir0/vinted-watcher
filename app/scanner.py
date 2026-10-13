@@ -1,4 +1,4 @@
-"""Moteur de scan + boucle automatique en arrière-plan."""
+"""Moteur de scan et boucle automatique en arrière-plan."""
 import logging
 import threading
 
@@ -9,35 +9,61 @@ logger = logging.getLogger("scanner")
 
 
 def run_scan() -> int:
-    """Un passage complet sur toutes les requêtes. Retourne le nb de nouveaux."""
+    """Scanne les recherches actives et retourne le nombre de nouvelles annonces."""
     cfg = db.get_config()
-    excluded = [normalize(k) for k in cfg.get("excluded_keywords", [])]
-    max_pages = int(cfg.get("pages") or 2)
+    excluded = [
+        normalize(keyword)
+        for keyword in cfg.get("excluded_keywords", [])
+        if keyword
+    ]
+    max_pages = max(1, min(10, int(cfg.get("pages") or 2)))
     client = VintedClient()
     new_count = 0
 
     for params in cfg.get("queries", []):
+        key = db.search_key(params)
+
         try:
             raw_items = client.fetch_items(dict(params), max_pages)
-        except Exception as e:
-            logger.error("Erreur pour la requête %s : %s", params, e)
+        except Exception:
+            logger.exception("Erreur pour la requête %s", params)
             continue
-        logger.info("Requête %r -> %s items",
-                    params.get("search_text") or "(vide)", len(raw_items))
+
+        logger.info(
+            "Requête %r -> %s items",
+            params.get("search_text") or "(vide)",
+            len(raw_items),
+        )
 
         for raw in raw_items:
-            item = parse_item(raw)
-            if db.is_seen(item["id"]):
-                continue
-            text = normalize(f"{item['title']} {item['description']}")
-            if any(kw in text for kw in excluded):
-                continue
-            db.mark_seen(item["id"])
-            db.insert_item(item)
-            new_count += 1
+            try:
+                item = parse_item(raw)
+                item_id = str(item["id"])
 
-    logger.info("Scan terminé : %s nouveaux items", new_count)
+                text = normalize(
+                    f"{item.get('title') or ''} "
+                    f"{item.get('description') or ''}"
+                )
+
+                if any(keyword in text for keyword in excluded):
+                    continue
+
+                was_seen = db.is_seen(item_id)
+
+                # Enregistre ou actualise l'annonce, son association à la
+                # recherche active et son prix observé.
+                db.record_observation(item, key)
+
+                if not was_seen:
+                    db.mark_seen(item_id)
+                    new_count += 1
+
+            except Exception:
+                logger.exception("Impossible de traiter une annonce")
+
+    logger.info("Scan terminé : %s nouvelles annonces", new_count)
     return new_count
+
 
 class AutoLoop(threading.Thread):
     def __init__(self):
@@ -46,13 +72,18 @@ class AutoLoop(threading.Thread):
 
     def run(self):
         logger.info("Boucle auto démarrée")
+
         while not self.stop_event.is_set():
             try:
                 run_scan()
-            except Exception as e:
-                logger.error("Erreur du scan auto : %s", e)
-            interval = int(db.get_config().get("interval_seconds", 300))
+            except Exception:
+                logger.exception("Erreur du scan automatique")
+
+            interval = int(
+                db.get_config().get("interval_seconds", 300)
+            )
             self.stop_event.wait(max(60, interval))
+
         logger.info("Boucle auto arrêtée")
 
 
@@ -61,17 +92,21 @@ _loop = None
 
 def start_auto():
     global _loop
+
     if _loop and _loop.is_alive():
         return
+
     _loop = AutoLoop()
-    _loop.start()
     db.set_config({"auto_scan": True})
+    _loop.start()
 
 
 def stop_auto():
     global _loop
+
     if _loop:
         _loop.stop_event.set()
+
     db.set_config({"auto_scan": False})
 
 

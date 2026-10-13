@@ -16,12 +16,14 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="Vinted Web Scanner")
-INDEX_PATH = Path(__file__).resolve().parent / "templates" / "index.html"
+
 BASE_DIR = Path(__file__).resolve().parent
+INDEX_PATH = BASE_DIR / "templates" / "index.html"
+
 app.mount(
     "/static",
     StaticFiles(directory=BASE_DIR / "static"),
-    name="static"
+    name="static",
 )
 
 
@@ -38,8 +40,10 @@ class ConfigUpdate(BaseModel):
     interval_seconds: int | None = None
     excluded_keywords: list | None = None
 
+
 class SavedSearchLoad(BaseModel):
     id: int
+
 
 @app.get("/")
 def index():
@@ -56,12 +60,59 @@ def get_config():
 @app.post("/api/config")
 def update_config(update: ConfigUpdate):
     updates = update.model_dump(exclude_none=True)
+
     if "pages" in updates:
         updates["pages"] = max(1, min(10, updates["pages"]))
+
     if "interval_seconds" in updates:
-        updates["interval_seconds"] = max(60, updates["interval_seconds"])
+        updates["interval_seconds"] = max(
+            60, updates["interval_seconds"]
+        )
+
     db.set_config(updates)
     return db.get_config() | {"auto_running": scanner.is_running()}
+
+
+@app.post("/api/scan")
+def scan_now():
+    try:
+        return {"ok": True, "new_items": scanner.run_scan()}
+    except Exception as exc:
+        logging.exception("Échec du scan manuel")
+        return JSONResponse(
+            {"ok": False, "error": str(exc)},
+            status_code=500,
+        )
+
+
+@app.post("/api/auto/{action}")
+def auto(action: str):
+    if action == "start":
+        scanner.start_auto()
+    elif action == "stop":
+        scanner.stop_auto()
+    else:
+        return JSONResponse(
+            {"ok": False, "error": "action inconnue"},
+            status_code=400,
+        )
+
+    return {"ok": True, "auto_running": scanner.is_running()}
+
+
+@app.get("/api/items")
+def items(limit: int = 2000):
+    cfg = db.get_config()
+    keys = db.active_search_keys(cfg.get("queries", []))
+    results = db.list_items_for_searches(keys, limit=limit)
+    return {"count": len(results), "items": results}
+
+
+@app.get("/api/stats")
+def stats():
+    cfg = db.get_config()
+    keys = db.active_search_keys(cfg.get("queries", []))
+    return db.get_price_trend(keys)
 
 
 @app.get("/api/saved-searches")
@@ -71,8 +122,7 @@ def get_saved_searches():
 
 @app.post("/api/saved-searches")
 def create_saved_search():
-    config = db.get_config()
-    saved = db.save_search(config)
+    saved = db.save_search(db.get_config())
     return {"ok": True, "item": saved}
 
 
@@ -98,9 +148,7 @@ def load_saved_search(data: SavedSearchLoad):
 
 @app.delete("/api/saved-searches/{search_id}")
 def remove_saved_search(search_id: int):
-    deleted = db.delete_saved_search(search_id)
-
-    if not deleted:
+    if not db.delete_saved_search(search_id):
         return JSONResponse(
             {"ok": False, "error": "Recherche introuvable."},
             status_code=404,
@@ -108,28 +156,11 @@ def remove_saved_search(search_id: int):
 
     return {"ok": True}
 
-@app.post("/api/scan")
-def scan_now():
-    try:
-        return {"ok": True, "new_items": scanner.run_scan()}
-    except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-
-@app.post("/api/auto/{action}")
-def auto(action: str):
-    if action == "start":
-        scanner.start_auto()
-    elif action == "stop":
-        scanner.stop_auto()
-    else:
-        return JSONResponse({"ok": False, "error": "action inconnue"}, status_code=400)
-    return {"ok": True, "auto_running": scanner.is_running()}
-
-
-@app.get("/api/items")
-def items(limit: int = 500):
-    return {"count": limit, "items": db.list_items(limit=limit)}
+@app.get("/api/items-legacy")
+def legacy_items(limit: int = 500):
+    """Accès à toutes les annonces, conservé pour les besoins de diagnostic."""
+    return {"items": db.list_items(limit=limit)}
 
 
 @app.post("/api/reset")
