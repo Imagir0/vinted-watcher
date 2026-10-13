@@ -1,200 +1,226 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vinted Web Scanner</title>
-<style>
-  :root { --teal:#09b1ba; --bg:#f4f6f8; --card:#fff; --text:#222; --muted:#777; }
-  * { box-sizing:border-box; }
-  body { font-family:system-ui,sans-serif; margin:0; background:var(--bg); color:var(--text); }
-  header { background:var(--teal); color:#fff; padding:18px 24px; display:flex; align-items:center; justify-content:space-between; }
-  header h1 { margin:0; font-size:1.3rem; }
-  .wrap { max-width:1100px; margin:0 auto; padding:20px; }
-  .panel { background:var(--card); border-radius:12px; padding:16px; margin-bottom:20px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
-  .panel h2 { margin:0 0 12px; font-size:1rem; color:var(--teal); }
-  label { display:block; font-size:.8rem; color:var(--muted); margin:8px 0 4px; }
-  input, select { width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:.9rem; }
-  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
-  button { background:var(--teal); color:#fff; border:0; border-radius:8px; padding:10px 18px; font-size:.9rem; cursor:pointer; margin-top:12px; }
-  button.secondary { background:#e2e6e9; color:var(--text); }
-  button.danger { background:#d9534f; }
-  .status { font-size:.85rem; color:var(--muted); margin-top:10px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
-  .item { background:var(--card); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.08); text-decoration:none; color:inherit; display:block; transition:transform .1s; }
-  .item:hover { transform:translateY(-2px); }
-  .item img { width:100%; aspect-ratio:1; object-fit:cover; background:#eee; display:block; }
-  .item .body { padding:10px 12px 14px; }
-  .item .title { font-size:.85rem; line-height:1.25; height:2.5em; overflow:hidden; margin:0 0 6px; }
-  .item .price { font-weight:700; color:var(--teal); font-size:.95rem; }
-  .item .meta { font-size:.75rem; color:var(--muted); margin-top:4px; }
-  .badge { display:inline-block; background:#ffe08a; color:#7a5200; font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:99px; margin-bottom:6px; }
-  .empty { text-align:center; color:var(--muted); padding:40px 0; }
-  .chips span { display:inline-block; background:#eef4f5; border-radius:99px; padding:3px 10px; font-size:.75rem; margin:2px; }
-</style>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vinted Watcher</title>
+<link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
+
 <header>
-  <h1>🧵 Vinted Web Scanner</h1>
-  <div>
-    <span id="autoStatus" style="font-size:.85rem"></span>
-    <button class="secondary" style="margin:0 0 0 12px" onclick="toggleAuto()" id="autoBtn"></button>
-  </div>
+    <a href="/">Vinted Watcher</a>
+
+    <nav aria-label="Navigation principale">
+        <a href="/">Accueil</a>
+        <a href="#search">Recherche</a>
+        <a href="#results">Annonces</a>
+    </nav>
 </header>
-<div class="wrap">
 
-  <div class="panel">
-    <h2>Recherche</h2>
-    <div class="row">
-      <div>
-        <label>Mots-clés (search_text)</label>
-        <input id="searchText" placeholder="ex : sac bandoulière">
-      </div>
-      <div>
-        <label>Marque — ID (attribute_ids[brand])</label>
-        <input id="brand" placeholder="ex : 417 (Louis Vuitton)">
-      </div>
-      <div>
-        <label>Catégorie — ID (attribute_ids[catalog])</label>
-        <input id="catalog" placeholder="ex : 2996">
-      </div>
-      <div>
-        <label>Tri (order)</label>
-        <select id="order">
-          <option value="newest_first">newest_first</option>
-          <option value="relevance">relevance</option>
-          <option value="price_low_to_high">price_low_to_high</option>
-          <option value="price_high_to_low">price_high_to_low</option>
-        </select>
-      </div>
-      <div>
-        <label>Pages par requête</label>
-        <input id="pages" type="number" min="1" max="10" value="2">
-      </div>
-      <div>
-        <label>Intervalle auto (secondes)</label>
-        <input id="interval" type="number" min="60" step="10" value="300">
-      </div>
-    </div>
-    <div>
-      <label>Mots-clés exclus (séparés par des virgules)</label>
-      <input id="excluded" placeholder="ex : replica, fake, lot">
-    </div>
-    <button onclick="saveAndScan()">💾 Enregistrer puis scanner</button>
-    <button class="secondary" onclick="saveConfig()">Enregistrer seulement</button>
-    <button class="danger" onclick="resetState()">Réinitialiser les vus</button>
-    <div class="status" id="status"></div>
-  </div>
+<main>
 
-  <div class="panel">
-    <h2>Articles détectés <span class="chips"><span id="itemCount">0</span></span></h2>
-    <div id="results" class="grid"></div>
-    <div id="emptyMsg" class="empty">Aucun article pour le moment. Lancez un scan ou activez le scan automatique.</div>
-  </div>
+    <p id="notice" class="status" role="status">
+        Chargement de la configuration…
+    </p>
 
-</div>
-<script>
-const $ = id => document.getElementById(id);
+    <section class="top-cards">
 
-async function api(path, opts) {
-  const r = await fetch(path, opts);
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
+        <!-- RECHERCHE -->
 
-async function loadConfig() {
-  const c = await api('/api/config');
-  const q = (c.queries && c.queries[0]) || {};
-  $('searchText').value = q['search_text'] || '';
-  $('brand').value = q['attribute_ids[brand]'] || '';
-  $('catalog').value = q['attribute_ids[catalog]'] || '';
-  $('order').value = q['order'] || 'newest_first';
-  $('pages').value = c.pages || 2;
-  $('interval').value = c.interval_seconds || 300;
-  $('excluded').value = (c.excluded_keywords || []).join(', ');
-  updateAuto(c.auto_running);
-}
+        <div class="card" id="search">
+            <h2>Recherche Vinted</h2>
 
-function buildConfig() {
-  return {
-    queries: [{
-      'search_text': $('searchText').value.trim(),
-      'attribute_ids[brand]': $('brand').value.trim(),
-      'attribute_ids[catalog]': $('catalog').value.trim(),
-      'order': $('order').value,
-    }],
-    pages: parseInt($('pages').value) || 2,
-    interval_seconds: parseInt($('interval').value) || 300,
-    excluded_keywords: $('excluded').value.split(',').map(s => s.trim()).filter(Boolean),
-  };
-}
+            <p class="muted">
+                Configure les paramètres utilisés par les prochains scans.
+            </p>
 
-async function saveConfig() {
-  const c = await api('/api/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildConfig()),
-  });
-  $('status').textContent = 'Configuration enregistrée ✅';
-  updateAuto(c.auto_running);
-}
+            <form id="search-form">
 
-async function saveAndScan() {
-  await saveConfig();
-  $('status').textContent = 'Scan en cours…';
-  try {
-    const r = await api('/api/scan', { method: 'POST' });
-    $('status').textContent = r.ok
-      ? `Scan terminé : ${r.new_items} nouveaux articles`
-      : `Erreur : ${r.error}`;
-  } catch (e) { $('status').textContent = 'Erreur : ' + e.message; }
-  loadItems();
-}
+                <div class="grid">
 
-async function toggleAuto() {
-  const c = await api('/api/config');
-  const action = c.auto_running ? 'stop' : 'start';
-  const r = await api('/api/auto/' + action, { method: 'POST' });
-  updateAuto(r.auto_running);
-}
+                    <div class="field">
+                        <label for="search_text">Mots-clés</label>
+                        <input
+                            id="search_text"
+                            placeholder="Ex. veste en cuir"
+                            autocomplete="off"
+                        >
+                    </div>
 
-function updateAuto(on) {
-  $('autoStatus').textContent = on ? 'Scan auto actif' : 'Scan auto arrêté';
-  $('autoBtn').textContent = on ? '⏸ Arrêter le scan auto' : '▶ Démarrer le scan auto';
-}
+                    <div class="field">
+                        <label for="order">Tri Vinted</label>
+                        <select id="order">
+                            <option value="newest_first">Plus récentes</option>
+                            <option value="price_low_to_high">Prix croissant</option>
+                            <option value="price_high_to_low">Prix décroissant</option>
+                            <option value="relevance">Pertinence</option>
+                        </select>
+                    </div>
 
-async function resetState() {
-  if (!confirm('Vider la liste des articles vus ? Le prochain scan considérera tout comme nouveau.')) return;
-  await api('/api/reset', { method: 'POST' });
-  loadItems();
-}
+                    <div class="field">
+                        <label for="brand_id">Identifiant de marque</label>
+                        <input id="brand_id" placeholder="ID de marque">
+                    </div>
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+                    <div class="field">
+                        <label for="catalog_id">Identifiant de catégorie</label>
+                        <input id="catalog_id" placeholder="ID de catalogue">
+                    </div>
 
-async function loadItems() {
-  try {
-    const r = await api('/api/items');
-    $('itemCount').textContent = r.items.length + ' article(s)';
-    $('emptyMsg').style.display = r.items.length ? 'none' : 'block';
-    $('results').innerHTML = r.items.map((it, i) => `
-      <a class="item" href="${esc(it.url)}" target="_blank" rel="noopener">
-        ${it.image ? `<img src="${esc(it.image)}" loading="lazy" alt="">` : ''}
-        <div class="body">
-          ${i < 3 ? '<span class="badge">NOUVEAU</span>' : ''}
-          <p class="title">${esc(it.title)}</p>
-          <div class="price">${it.price != null ? it.price.toFixed(2).replace('.', ',') : '?'} €
-            ${it.total_price != null ? `<span style="font-weight:400;color:#777;font-size:.75rem">(${it.total_price.toFixed(2).replace('.', ',')} € w/fee)</span>` : ''}
-          </div>
-          <div class="meta">${esc(it.brand)} ${it.size ? '· ' + esc(it.size) : ''} ${it.favourite_count ? '· ❤️ ' + it.favourite_count : ''}</div>
-          <div class="meta">${esc(it.found_at)}</div>
+                    <div class="field">
+                        <label for="price_from">Prix minimum (€)</label>
+                        <input id="price_from" type="number" min="0" step="0.01">
+                    </div>
+
+                    <div class="field">
+                        <label for="price_to">Prix maximum (€)</label>
+                        <input id="price_to" type="number" min="0" step="0.01">
+                    </div>
+
+                    <div class="field">
+                        <label for="size_ids">Identifiants de taille</label>
+                        <input id="size_ids" placeholder="Ex. 123,456">
+                    </div>
+
+                    <div class="field">
+                        <label for="status_ids">Identifiants d'état</label>
+                        <input id="status_ids" placeholder="Ex. 6,2">
+                    </div>
+
+                    <div class="field">
+                        <label for="pages">Pages à parcourir (1–10)</label>
+                        <input id="pages" type="number" min="1" max="10" value="2">
+                    </div>
+
+                    <div class="field">
+                        <label for="interval_seconds">Intervalle automatique (secondes)</label>
+                        <input id="interval_seconds" type="number" min="60" value="300">
+                    </div>
+
+                    <div class="field" style="grid-column:1/-1">
+                        <label for="excluded_keywords">Mots à exclure (un par ligne)</label>
+                        <textarea
+                            id="excluded_keywords"
+                            placeholder="défectueux&#10;pour pièces"
+                        ></textarea>
+                    </div>
+
+                </div>
+
+                <div class="actions">
+                    <button class="action-button" type="submit">
+                        Enregistrer la recherche
+                    </button>
+
+                    <button class="action-button secondary" type="button" id="scan-btn">
+                        Lancer un scan
+                    </button>
+
+                    <button class="action-button" type="button" id="auto-btn">
+                        Démarrer l'auto-scan
+                    </button>
+                </div>
+
+            </form>
         </div>
-      </a>`).join('');
-  } catch (e) { $('status').textContent = 'Erreur de chargement : ' + e.message; }
-}
 
-loadConfig();
-loadItems();
-setInterval(loadItems, 15000);
-</script>
+        <!-- STATISTIQUES -->
+
+        <aside class="card statistics-card">
+
+            <div class="statistics-header">
+                <h2>Statistiques</h2>
+            </div>
+
+            <div class="statistics-grid">
+
+                <div class="stat-item">
+                    <span class="stat-label">Annonces affichées</span>
+                    <strong class="stat-value" id="stat-total">—</strong>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Prix moyen affiché</span>
+                    <strong class="stat-value" id="stat-average">—</strong>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Prix le plus bas</span>
+                    <strong class="stat-value" id="stat-min">—</strong>
+                </div>
+
+                <div class="stat-item">
+                    <span class="stat-label">Prix le plus élevé</span>
+                    <strong class="stat-value" id="stat-max">—</strong>
+                </div>
+
+                <div class="stat-item new-stat">
+                    <span class="stat-label">Surveillance automatique</span>
+                    <strong class="new-count" id="stat-auto">—</strong>
+                    <span class="stat-subtitle" id="stat-pages">
+                        Configuration en cours de chargement
+                    </span>
+                </div>
+
+            </div>
+        </aside>
+
+    </section>
+
+    <!-- RÉSULTATS -->
+
+    <section class="card" id="results">
+
+        <div class="results-header">
+            <h2>Résultats enregistrés</h2>
+
+            <div class="sort-form">
+                <label for="display-sort">Trier l'affichage</label>
+
+                <select class="sort-select" id="display-sort">
+                    <option value="newest">Découverte : récente</option>
+                    <option value="oldest">Découverte : ancienne</option>
+                    <option value="price-asc">Prix croissant</option>
+                    <option value="price-desc">Prix décroissant</option>
+                    <option value="favourites">Favoris décroissants</option>
+                    <option value="title">Titre A–Z</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-bottom:16px">
+
+            <div class="field">
+                <label for="filter-text">Filtrer par texte</label>
+                <input id="filter-text" placeholder="Titre, marque, description…">
+            </div>
+
+            <div class="field">
+                <label for="filter-brand">Filtrer par marque</label>
+                <input id="filter-brand" placeholder="Nom de marque">
+            </div>
+
+            <div class="field">
+                <label for="filter-min">Prix minimum (€)</label>
+                <input id="filter-min" type="number" min="0" step="0.01">
+            </div>
+
+            <div class="field">
+                <label for="filter-max">Prix maximum (€)</label>
+                <input id="filter-max" type="number" min="0" step="0.01">
+            </div>
+
+        </div>
+
+        <p id="result-count" class="muted">Chargement des annonces…</p>
+
+        <div id="listings"></div>
+
+    </section>
+
+</main>
+<script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

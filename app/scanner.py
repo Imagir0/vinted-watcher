@@ -39,9 +39,6 @@ def run_scan() -> int:
     logger.info("Scan terminé : %s nouveaux items", new_count)
     return new_count
 
-
-# --- boucle automatique -----------------------------------------------------
-
 class AutoLoop(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True)

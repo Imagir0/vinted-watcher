@@ -1,9 +1,9 @@
-"""Point d'entrée FastAPI : API JSON + interface web."""
 import logging
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import database as db
@@ -17,6 +17,12 @@ logging.basicConfig(
 
 app = FastAPI(title="Vinted Web Scanner")
 INDEX_PATH = Path(__file__).resolve().parent / "templates" / "index.html"
+BASE_DIR = Path(__file__).resolve().parent
+app.mount(
+    "/static",
+    StaticFiles(directory=BASE_DIR / "static"),
+    name="static"
+)
 
 
 @app.on_event("startup")

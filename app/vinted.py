@@ -1,5 +1,3 @@
-"""Client API Vinted — mécanisme de session repris de VintedScanner,
-avec résolution du challenge anti-bot (cookies ___pt / ___vt)."""
 import logging
 import re
 import time
@@ -34,7 +32,6 @@ logger = logging.getLogger("vinted")
 
 
 def normalize(text):
-    """NFKD sans accents, minuscules (comme le projet d'origine)."""
     return "".join(
         c for c in unicodedata.normalize("NFKD", str(text))
         if not unicodedata.combining(c)
@@ -42,7 +39,6 @@ def normalize(text):
 
 
 class VintedClient:
-    """Session avec cookies anti-bot, puis interrogation de l'API catalogue."""
 
     def __init__(self):
         self.session = requests.Session()
@@ -62,7 +58,6 @@ class VintedClient:
             logger.warning("URL de challenge introuvable dans la vitrine")
 
     def fetch_items(self, params: dict, max_pages: int) -> list:
-        """Retourne tous les items pour une requête, page par page."""
         items = []
         page = 1
         while page <= max_pages:
