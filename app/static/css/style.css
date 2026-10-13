@@ -123,7 +123,7 @@ main {
 }
 
 .status {
-    margin: 0 0 20px;
+    margin: 20px 0 20px;
     padding: 12px 16px;
     border: 1px solid var(--border);
     border-radius: 7px;
