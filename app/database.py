@@ -65,6 +65,12 @@ ON price_history(search_key, observed_at);
 
 CREATE INDEX IF NOT EXISTS idx_price_history_item_time
 ON price_history(item_id, observed_at);
+
+CREATE TABLE IF NOT EXISTS profile_cache (
+    member_id TEXT PRIMARY KEY,
+    profile_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 DEFAULT_CONFIG = {
@@ -495,3 +501,53 @@ def reset_state():
         conn.execute("DELETE FROM seen")
         conn.execute("DELETE FROM item_searches")
         conn.execute("DELETE FROM price_history")
+
+def get_cached_profile(member_id: str) -> dict | None:
+    """Retourne le profil enregistré, s'il existe."""
+    member_id = str(member_id).strip()
+
+    with lock, connect() as conn:
+        row = conn.execute(
+            """
+            SELECT profile_json
+            FROM profile_cache
+            WHERE member_id = ?
+            """,
+            (member_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    try:
+        profile = json.loads(row["profile_json"])
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    return profile if isinstance(profile, dict) else None
+
+
+def save_cached_profile(member_id: str, profile: dict):
+    """Enregistre ou actualise les données d'un profil."""
+    member_id = str(member_id).strip()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    with lock, connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO profile_cache (
+                member_id,
+                profile_json,
+                updated_at
+            )
+            VALUES (?, ?, ?)
+            ON CONFLICT(member_id) DO UPDATE SET
+                profile_json = excluded.profile_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                member_id,
+                json.dumps(profile, ensure_ascii=False),
+                now,
+            ),
+        )

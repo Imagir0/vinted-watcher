@@ -18,6 +18,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const originalProfile = document.getElementById("original-profile");
     const profileResult = document.getElementById("profile-result");
 
+    const lastMemberId = localStorage.getItem("vinted_last_member_id");
+
     let currentRequest = null;
 
     function renderRatingStars(rating) {
@@ -434,6 +436,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const memberId = memberIdInput?.value.trim() ?? "";
 
+            localStorage.setItem("vinted_last_member_id", memberId);
+
             if (!/^\d{1,20}$/.test(memberId)) {
                 displayError(
                     "Saisis un identifiant Vinted numérique valide."
@@ -488,5 +492,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentRequest = null;
             }
         });
+    }
+
+    if (lastMemberId && /^\d{1,20}$/.test(lastMemberId)) {
+        memberIdInput.value = lastMemberId;
+
+        if (profileForm.requestSubmit) {
+            profileForm.requestSubmit();
+        } else {
+            profileForm.dispatchEvent(
+                new Event("submit", { bubbles: true, cancelable: true })
+            );
+        }
     }
 });

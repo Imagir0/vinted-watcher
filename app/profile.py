@@ -1,4 +1,3 @@
-
 import logging
 import re
 from urllib.parse import urlparse
@@ -9,12 +8,12 @@ from playwright.sync_api import (
 )
 
 from .profile_info import _extract_profile_data
+from .database import get_cached_profile, save_cached_profile
 from .profile_items import (
     BATCH_SIZE,
     MAX_ITEMS,
     iter_items_in_batches,
 )
-
 
 VINTED_URL = "https://www.vinted.fr"
 
@@ -30,11 +29,6 @@ def iter_public_profile_events(
     batch_size: int = BATCH_SIZE,
     max_items: int = MAX_ITEMS,
 ):
-    """
-    Produit les événements profile, items, done ou error.
-
-    Le navigateur reste ouvert pendant toute la collecte.
-    """
     member_id = str(member_id).strip()
 
     if not re.fullmatch(r"\d{1,20}", member_id):
@@ -63,6 +57,27 @@ def iter_public_profile_events(
         return
 
     profile_url = f"{VINTED_URL}/member/{member_id}"
+
+    cached_profile = get_cached_profile(member_id)
+    profile_already_sent = cached_profile is not None
+    profile_data = None
+
+    if cached_profile is not None:
+        profile_data = dict(cached_profile)
+        profile_data.update({
+            "member_id": member_id,
+            "profile_url": profile_url,
+            "items": [],
+            "items_count": 0,
+            "items_batch_size": batch_size,
+            "items_limit": max_items,
+            "warning": None,
+        })
+
+        yield {
+            "event": "profile",
+            "data": profile_data,
+        }
 
     try:
         with sync_playwright() as playwright:
@@ -119,39 +134,42 @@ def iter_public_profile_events(
                         "Aucune carte grid-item trouvée au chargement."
                     )
 
-                # Étape 1 : extraire et transmettre le profil.
-                profile = _extract_profile_data(page, member_id)
+                if not profile_already_sent:
+                    profile = _extract_profile_data(page, member_id)
 
-                yield {
-                    "event": "profile",
-                    "data": {
+                    profile_data = {
                         "member_id": member_id,
                         "profile_url": profile_url,
-                        "username": profile["username"],
-                        "bio": profile["description"],
-                        "avatar": profile["avatar"],
-                        "followers_count": profile["followers_count"],
-                        "following_count": profile["following_count"],
-                        "ratings_count": profile["ratings_count"],
-                        "rating_average": profile["rating_average"],
+                        "username": profile.get("username"),
+                        "bio": profile.get("description"),
+                        "avatar": profile.get("avatar"),
+                        "followers_count": profile.get("followers_count"),
+                        "following_count": profile.get("following_count"),
+                        "ratings_count": profile.get("ratings_count"),
+                        "rating_average": profile.get("rating_average"),
                         "items": [],
                         "items_count": 0,
                         "items_batch_size": batch_size,
                         "items_limit": max_items,
                         "warning": None,
                         "debug": {
-                            "page_title": profile["pageTitle"],
+                            "page_title": profile.get("pageTitle"),
                             "body_preview": (
-                                profile["bodyText"] or ""
+                                profile.get("bodyText") or ""
                             )[:1200],
                             "final_url": page.url,
                             "initial_grid_count": grid_count,
                             "initial_item_container_count": container_count,
                         },
-                    },
-                }
+                    }
 
-                # Étape 2 : collecter et transmettre les annonces.
+                    save_cached_profile(member_id, profile_data)
+
+                    yield {
+                        "event": "profile",
+                        "data": profile_data,
+                    }
+
                 total_items = 0
 
                 for batch in iter_items_in_batches(
@@ -172,10 +190,10 @@ def iter_public_profile_events(
                 warning_messages = []
 
                 if (
-                    profile["followers_count"] is None
-                    or profile["following_count"] is None
-                    or profile["ratings_count"] is None
-                    or profile["rating_average"] is None
+                    profile_data.get("followers_count") is None
+                    or profile_data.get("following_count") is None
+                    or profile_data.get("ratings_count") is None
+                    or profile_data.get("rating_average") is None
                 ):
                     warning_messages.append(
                         "Certaines données du profil sont absentes du DOM."
@@ -188,7 +206,6 @@ def iter_public_profile_events(
 
                 warning = " ".join(warning_messages) or None
 
-                # Étape 3 : signaler la fin de la collecte.
                 yield {
                     "event": "done",
                     "data": {
@@ -231,9 +248,6 @@ def get_public_profile(
     batch_size: int = BATCH_SIZE,
     max_items: int = MAX_ITEMS,
 ) -> dict:
-    """
-    Version synchrone historique : renvoie un dictionnaire complet.
-    """
     profile_result = None
     items = []
 
