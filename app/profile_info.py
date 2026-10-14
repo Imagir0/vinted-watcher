@@ -1,6 +1,6 @@
 
-def _extract_profile_data(page, member_id):
-    return page.evaluate(
+async def _extract_profile_data(page, member_id):
+    return await page.evaluate(
         r"""
         (memberId) => {
             const text = (el) =>

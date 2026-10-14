@@ -110,7 +110,7 @@ export function renderItems() {
 
     if (!items.length) {
         $("listings").innerHTML =
-            '<div class="empty">Aucune annonce ne correspond aux filtres.</div>';
+            '<div class="empty">Aucun article ne correspond aux filtres.</div>';
         return;
     }
 
@@ -163,7 +163,7 @@ export function renderItems() {
                         rel="noopener noreferrer"
                         class="listing-link"
                     >
-                        Voir l'annonce ↗
+                        Voir l'article ↗
                     </a>
                 ` : ""}
             </article>

@@ -1,9 +1,10 @@
+
 import logging
 import re
 from urllib.parse import urlparse
 
-from playwright.sync_api import (
-    sync_playwright,
+from playwright.async_api import (
+    async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
 
@@ -24,7 +25,7 @@ class ProfileFetchError(Exception):
     """Erreur lors de la lecture d'un profil Vinted."""
 
 
-def iter_public_profile_events(
+async def iter_public_profile_events(
     member_id: str,
     batch_size: int = BATCH_SIZE,
     max_items: int = MAX_ITEMS,
@@ -51,15 +52,15 @@ def iter_public_profile_events(
         yield {
             "event": "error",
             "data": {
-                "error": "La limite d'annonces doit être supérieure ou égale à 1."
+                "error": "La limite d'articles doit être supérieure ou égale à 1."
             },
         }
         return
 
     profile_url = f"{VINTED_URL}/member/{member_id}"
 
+    # On tente de récupérer le profil en cache.
     cached_profile = get_cached_profile(member_id)
-    profile_already_sent = cached_profile is not None
     profile_data = None
 
     if cached_profile is not None:
@@ -74,22 +75,23 @@ def iter_public_profile_events(
             "warning": None,
         })
 
+        # Le profil peut être affiché immédiatement.
         yield {
             "event": "profile",
             "data": profile_data,
         }
 
     try:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
 
             try:
-                page = browser.new_page(
+                page = await browser.new_page(
                     locale="fr-FR",
                     viewport={"width": 1440, "height": 1000},
                 )
 
-                response = page.goto(
+                response = await page.goto(
                     profile_url,
                     wait_until="domcontentloaded",
                     timeout=30000,
@@ -99,7 +101,7 @@ def iter_public_profile_events(
                     raise ProfileFetchError("Profil introuvable.")
 
                 try:
-                    page.wait_for_load_state(
+                    await page.wait_for_load_state(
                         "networkidle",
                         timeout=10000,
                     )
@@ -109,7 +111,7 @@ def iter_public_profile_events(
                         "poursuite avec le DOM courant."
                     )
 
-                page.wait_for_timeout(1200)
+                await page.wait_for_timeout(1200)
 
                 parsed_url = urlparse(page.url)
 
@@ -121,11 +123,11 @@ def iter_public_profile_events(
                         "Vinted a redirigé vers une page inattendue."
                     )
 
-                grid_count = page.locator(
+                grid_count = await page.locator(
                     'div[data-testid="grid-item"]'
                 ).count()
 
-                container_count = page.locator(
+                container_count = await page.locator(
                     '[data-testid^="product-item-id-"]'
                 ).count()
 
@@ -134,8 +136,12 @@ def iter_public_profile_events(
                         "Aucune carte grid-item trouvée au chargement."
                     )
 
-                if not profile_already_sent:
-                    profile = _extract_profile_data(page, member_id)
+                # Si le profil n'était pas en cache, on l'extrait maintenant.
+                if profile_data is None:
+                    profile = await _extract_profile_data(
+                        page,
+                        member_id,
+                    )
 
                     profile_data = {
                         "member_id": member_id,
@@ -170,9 +176,10 @@ def iter_public_profile_events(
                         "data": profile_data,
                     }
 
+                # Le profil a été envoyé : on collecte les annonces.
                 total_items = 0
 
-                for batch in iter_items_in_batches(
+                async for batch in iter_items_in_batches(
                     page,
                     batch_size=batch_size,
                     max_items=max_items,
@@ -199,11 +206,6 @@ def iter_public_profile_events(
                         "Certaines données du profil sont absentes du DOM."
                     )
 
-                if total_items == 0:
-                    warning_messages.append(
-                        "Aucune annonce trouvée dans la grille DOM."
-                    )
-
                 warning = " ".join(warning_messages) or None
 
                 yield {
@@ -218,7 +220,7 @@ def iter_public_profile_events(
                 }
 
             finally:
-                browser.close()
+                await browser.close()
 
     except ProfileFetchError as exc:
         yield {
@@ -243,7 +245,7 @@ def iter_public_profile_events(
         }
 
 
-def get_public_profile(
+async def get_public_profile(
     member_id: str,
     batch_size: int = BATCH_SIZE,
     max_items: int = MAX_ITEMS,
@@ -251,7 +253,7 @@ def get_public_profile(
     profile_result = None
     items = []
 
-    for message in iter_public_profile_events(
+    async for message in iter_public_profile_events(
         member_id,
         batch_size=batch_size,
         max_items=max_items,
