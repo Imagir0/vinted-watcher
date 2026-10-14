@@ -1,7 +1,7 @@
 
 import logging
 
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 
 BATCH_SIZE = 10
@@ -13,8 +13,8 @@ SCROLL_PAUSE_MS = 800
 logger = logging.getLogger(__name__)
 
 
-def _extract_visible_items(page):
-    return page.evaluate(
+async def _extract_visible_items(page):
+    return await page.evaluate(
         r"""
         () => {
             const text = (el) =>
@@ -117,7 +117,7 @@ def _extract_visible_items(page):
     )
 
 
-def iter_items_in_batches(
+async def iter_items_in_batches(
     page,
     batch_size=BATCH_SIZE,
     max_items=MAX_ITEMS,
@@ -133,7 +133,7 @@ def iter_items_in_batches(
     )
 
     while len(collected) < max_items:
-        visible_items = _extract_visible_items(page)
+        visible_items = await _extract_visible_items(page)
         count_before = len(collected)
         new_items = []
 
@@ -168,7 +168,7 @@ def iter_items_in_batches(
         if idle_rounds >= MAX_IDLE_ROUNDS:
             break
 
-        page.evaluate(
+        await page.evaluate(
             """
             () => {
                 window.scrollBy({
@@ -181,7 +181,7 @@ def iter_items_in_batches(
         )
 
         try:
-            page.wait_for_function(
+            await page.wait_for_function(
                 """
                 previousCount =>
                     document.querySelectorAll(
@@ -194,19 +194,19 @@ def iter_items_in_batches(
         except PlaywrightTimeoutError:
             pass
 
-        page.wait_for_timeout(SCROLL_PAUSE_MS)
+        await page.wait_for_timeout(SCROLL_PAUSE_MS)
 
     logger.info("Collecte terminée : %s annonce(s).", len(collected))
 
 
-def _collect_items_in_batches(
+async def _collect_items_in_batches(
     page,
     batch_size=BATCH_SIZE,
     max_items=MAX_ITEMS,
 ):
     result = []
 
-    for batch in iter_items_in_batches(
+    async for batch in iter_items_in_batches(
         page,
         batch_size=batch_size,
         max_items=max_items,

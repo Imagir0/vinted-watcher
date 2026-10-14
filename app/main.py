@@ -189,8 +189,8 @@ def profile_page():
 
 @app.get("/api/profile/{member_id}")
 def profile_data(member_id: str):
-    def event_stream():
-        for message in iter_public_profile_events(member_id):
+    async def event_stream():
+        async for message in iter_public_profile_events(member_id):
             event = message["event"]
             data = json.dumps(
                 message["data"],

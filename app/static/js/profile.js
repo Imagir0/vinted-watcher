@@ -1,11 +1,21 @@
 
 document.addEventListener("DOMContentLoaded", () => {
+    const searchCard = document.getElementById("search-card");
+    const profileCard = document.getElementById("profile-card");
+    const itemsSection = document.getElementById("items-section");
+
     const profileForm = document.getElementById("profile-form");
     const memberIdInput = document.getElementById("member-id");
     const searchButton = document.getElementById("search-button");
+    const changeMemberButton = document.getElementById("change-member-button");
+
+    const searchStatus = document.getElementById("search-status");
     const profileStatus = document.getElementById("profile-status");
+    const profileWarning = document.getElementById("profile-warning");
+    const memberProfileIdLink = document.getElementById("member-profile-id-link");
 
     const memberName = document.getElementById("member-name");
+    const memberIdLabel = document.getElementById("member-id-label");
     const memberBio = document.getElementById("member-bio");
     const memberAvatar = document.getElementById("member-avatar");
 
@@ -16,15 +26,112 @@ document.addEventListener("DOMContentLoaded", () => {
     const ratingStars = document.getElementById("rating-stars");
 
     const originalProfile = document.getElementById("original-profile");
-    const profileResult = document.getElementById("profile-result");
+
+    const refreshItemsButton = document.getElementById("refresh-items-button");
+    const itemsGrid = document.getElementById("items-grid");
+    const itemsCount = document.getElementById("items-count");
 
     const lastMemberId = localStorage.getItem("vinted_last_member_id");
 
+    const toastContainer = document.getElementById("toast-container");
+
+    const PROFILE_CACHE_KEY = "vinted-profile-cache";
+    const ITEMS_CACHE_KEY = "vinted-items-cache";
+
+    let cachedItems = [];
     let currentRequest = null;
+    let profileLoaded = false;
+    let collectedItemCount = 0;
+
+    function showToast(message, type = "success", duration = 4000) {
+        if (!toastContainer) return;
+
+        const toast = document.createElement("div");
+        toast.className = `toast-notification ${type}`;
+        toast.setAttribute("role", type === "error" ? "alert" : "status");
+        toast.textContent = message;
+
+        toastContainer.appendChild(toast);
+
+        if (duration > 0) {
+            setTimeout(() => toast.remove(), duration);
+        }
+    }
+
+    // --------------------------------------------------
+    // AFFICHAGE DES CARDS
+    // --------------------------------------------------
+
+    function showSearchCard() {
+        searchCard.hidden = false;
+
+        if (changeMemberButton) {
+            changeMemberButton.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function hideSearchCard() {
+        searchCard.hidden = true;
+
+        if (changeMemberButton) {
+            changeMemberButton.setAttribute("aria-expanded", "false");
+        }
+    }
+
+    function resetItems() {
+        itemsGrid.replaceChildren();
+        itemsCount.textContent = "Chargement des annonces…";
+        collectedItemCount = 0;
+    }
+
+    function clearCache() {
+        sessionStorage.removeItem(PROFILE_CACHE_KEY);
+        sessionStorage.removeItem(ITEMS_CACHE_KEY);
+        cachedItems = [];
+    }
+
+    function prepareNewSearch() {
+        currentRequest?.abort();
+        currentRequest = null;
+
+        profileLoaded = false;
+
+        profileCard.hidden = true;
+        itemsSection.hidden = true;
+
+        clearCache();
+        resetItems();
+
+        if (profileWarning) {
+            profileWarning.hidden = true;
+            profileWarning.textContent = "";
+        }
+
+        if (searchButton) {
+            searchButton.disabled = false;
+            searchButton.textContent = "Rechercher";
+        }
+
+        showSearchCard();
+
+        searchStatus.textContent =
+            "Renseigne un identifiant pour afficher un profil.";
+
+        memberIdInput.focus();
+    }
+
+    if (changeMemberButton) {
+        changeMemberButton.addEventListener("click", () => {
+            changeMemberButton.hidden = true;
+            prepareNewSearch();
+        });
+    }
+
+    // --------------------------------------------------
+    // ÉTOILES DE NOTATION
+    // --------------------------------------------------
 
     function renderRatingStars(rating) {
-        if (!ratingStars) return;
-
         ratingStars.replaceChildren();
 
         const parsedRating = Number(rating);
@@ -42,17 +149,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 ratingStars.appendChild(star);
             }
 
-            if (ratingAverage) {
-                ratingAverage.textContent = "Note indisponible";
-            }
+            ratingStars.setAttribute(
+                "aria-label",
+                "Aucune note disponible"
+            );
 
+            ratingAverage.textContent = "Note indisponible";
             return;
         }
 
-        const normalizedRating = Math.max(0, Math.min(5, parsedRating));
+        const normalizedRating = Math.max(
+            0,
+            Math.min(5, parsedRating)
+        );
 
         for (let i = 0; i < 5; i++) {
             const star = document.createElement("span");
+
             const fill = Math.max(
                 0,
                 Math.min(100, (normalizedRating - i) * 100)
@@ -69,252 +182,113 @@ document.addEventListener("DOMContentLoaded", () => {
             ratingStars.appendChild(star);
         }
 
-        if (ratingAverage) {
-            ratingAverage.textContent =
-                `${normalizedRating.toFixed(1)} / 5`;
-        }
+        ratingStars.setAttribute(
+            "aria-label",
+            `Note moyenne : ${normalizedRating.toFixed(1)} sur 5`
+        );
+
+        ratingAverage.textContent =
+            `${normalizedRating.toFixed(1)} / 5`;
     }
 
+    // --------------------------------------------------
+    // AFFICHAGE DU PROFIL
+    // --------------------------------------------------
+
     function displayProfile(data) {
-        if (memberName) {
-            memberName.textContent = data.username || "Profil Vinted";
+        memberName.textContent = data.username || "Profil Vinted";
+        memberIdLabel.textContent = data.member_id ?? "—";
+
+        memberBio.textContent =
+            data.bio || "Aucune biographie renseignée.";
+
+        followersCount.textContent = data.followers_count ?? "—";
+        followingCount.textContent = data.following_count ?? "—";
+        ratingsCount.textContent = data.ratings_count ?? "—";
+
+        if (data.avatar) {
+            memberAvatar.src = data.avatar;
+            memberAvatar.hidden = false;
+        } else {
+            memberAvatar.removeAttribute("src");
+            memberAvatar.hidden = true;
         }
 
-        if (memberBio) {
-            memberBio.textContent =
-                data.bio || "Aucune biographie renseignée.";
-        }
+        const profileUrl = data.profile_url || "";
 
-        if (followersCount) {
-            followersCount.textContent = data.followers_count ?? "—";
-        }
+        if (profileUrl) {
+            try {
+                const parsedUrl = new URL(
+                    profileUrl,
+                    "https://www.vinted.fr"
+                );
 
-        if (followingCount) {
-            followingCount.textContent = data.following_count ?? "—";
-        }
-
-        if (ratingsCount) {
-            ratingsCount.textContent = data.ratings_count ?? "—";
-        }
-
-        if (memberAvatar) {
-            if (data.avatar) {
-                memberAvatar.src = data.avatar;
-                memberAvatar.hidden = false;
-            } else {
-                memberAvatar.removeAttribute("src");
+                if (
+                    parsedUrl.protocol === "https:" &&
+                    (
+                        parsedUrl.hostname === "vinted.fr" ||
+                        parsedUrl.hostname.endsWith(".vinted.fr")
+                    )
+                ) {
+                    originalProfile.href = parsedUrl.href;
+                } else {
+                    originalProfile.href = "https://www.vinted.fr/";
+                }
+            } catch {
+                originalProfile.href = "https://www.vinted.fr/";
             }
+        } else {
+            originalProfile.href = "https://www.vinted.fr/";
         }
 
-        if (originalProfile && data.profile_url) {
-            originalProfile.href = data.profile_url;
-            originalProfile.target = "_blank";
-            originalProfile.rel = "noopener noreferrer";
-        }
-
-        if (memberIdInput) {
-            memberIdInput.value = data.member_id ?? "";
+        if (memberProfileIdLink) {
+            memberProfileIdLink.href = originalProfile.href;
         }
 
         renderRatingStars(data.rating_average);
 
-        if (profileResult) {
-            profileResult.hidden = false;
+        profileCard.hidden = false;
+        itemsSection.hidden = false;
+        hideSearchCard();
+
+        profileLoaded = true;
+
+        if (profileStatus) {
+            profileStatus.textContent = "Utilisateur trouvé !";
+        }
+
+        if (changeMemberButton) {
+            changeMemberButton.hidden = false;
         }
     }
 
     function displayError(message) {
-        if (profileStatus) {
+        if (profileLoaded) {
             profileStatus.textContent = message;
+        } else {
+            searchStatus.textContent = message;
         }
     }
 
-    /**
-     * Lit le flux SSE de la route FastAPI.
-     * Le profil est affiché avant le début de la collecte des annonces.
-     */
-    async function fetchProfile(memberId, signal) {
-        const response = await fetch(
-            `/api/profile/${encodeURIComponent(memberId)}`,
-            {
-                method: "GET",
-                headers: {
-                    Accept: "text/event-stream",
-                },
-                signal,
-            }
-        );
-
-        if (!response.ok) {
-            let message = `Erreur du serveur (${response.status}).`;
-
-            try {
-                const data = await response.json();
-                message = data.detail || data.error || message;
-            } catch {
-                // Conserve le message par défaut.
-            }
-
-            throw new Error(message);
-        }
-
-        if (!response.body) {
-            throw new Error("Le navigateur ne permet pas de lire le flux.");
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let receivedProfile = false;
-        let receivedDone = false;
-
-        async function handleEvent(block) {
-            let eventName = "message";
-            const dataLines = [];
-
-            for (const line of block.split(/\r?\n/)) {
-                if (line.startsWith("event:")) {
-                    eventName = line.slice(6).trim();
-                } else if (line.startsWith("data:")) {
-                    dataLines.push(line.slice(5).trimStart());
-                }
-            }
-
-            if (dataLines.length === 0) return;
-
-            let data;
-
-            try {
-                data = JSON.parse(dataLines.join("\n"));
-            } catch {
-                throw new Error("Le serveur a transmis un événement invalide.");
-            }
-
-            if (eventName === "profile") {
-                displayProfile(data);
-                renderItems([], false);
-
-                receivedProfile = true;
-
-                if (profileStatus) {
-                    profileStatus.textContent =
-                        "Profil chargé. Chargement des annonces…";
-                }
-            } else if (eventName === "items") {
-                if (!receivedProfile) {
-                    throw new Error(
-                        "Les annonces ont été reçues avant le profil."
-                    );
-                }
-
-                renderItems(
-                    Array.isArray(data.items) ? data.items : [],
-                    true
-                );
-
-                if (profileStatus) {
-                    profileStatus.textContent =
-                        `Profil chargé. ${data.items_count} annonce(s) récupérée(s)…`;
-                }
-            } else if (eventName === "done") {
-                receivedDone = true;
-
-                const total = Number(data.items_count || 0);
-
-                if (total === 0) {
-                    renderItems([], false);
-
-                    const grid = document.getElementById("items-grid");
-                    const count = document.getElementById("items-count");
-
-                    if (grid) grid.replaceChildren();
-                    if (count) count.textContent = "Aucune annonce récupérée.";
-                }
-
-                if (profileStatus) {
-                    let message = `Profil chargé. Collecte terminée : ${total} annonce(s).`;
-
-                    if (data.items_limit_reached) {
-                        message += " La limite configurée a été atteinte.";
-                    }
-
-                    if (data.warning) {
-                        message += ` Attention : ${data.warning}`;
-                    }
-
-                    profileStatus.textContent = message;
-                }
-            } else if (eventName === "error") {
-                throw new Error(
-                    data.error || "Une erreur est survenue pendant la collecte."
-                );
-            }
-        }
-
-        try {
-            while (true) {
-                const { value, done } = await reader.read();
-
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-
-                const blocks = buffer.split(/\r?\n\r?\n/);
-                buffer = blocks.pop() || "";
-
-                for (const block of blocks) {
-                    await handleEvent(block);
-                }
-            }
-
-            buffer += decoder.decode();
-
-            if (buffer.trim()) {
-                await handleEvent(buffer);
-            }
-
-            if (!receivedProfile) {
-                throw new Error(
-                    "Aucune information de profil reçue du serveur."
-                );
-            }
-
-            if (!receivedDone) {
-                throw new Error(
-                    "Le flux s'est terminé avant la fin de la collecte."
-                );
-            }
-        } finally {
-            reader.releaseLock();
-        }
-    }
+    // --------------------------------------------------
+    // AFFICHAGE DES ANNONCES
+    // --------------------------------------------------
 
     function renderItems(items, append = false) {
-        const grid = document.getElementById("items-grid");
-        const count = document.getElementById("items-count");
-
-        if (!grid || !count) {
-            console.error(
-                "Zone d'annonces introuvable : vérifie #items-grid et #items-count dans profile.html."
-            );
-            return;
-        }
-
         if (!append) {
-            grid.replaceChildren();
+            itemsGrid.replaceChildren();
+            collectedItemCount = 0;
         }
 
         if (!Array.isArray(items) || items.length === 0) {
-            if (!append) {
-                count.textContent = "Chargement des annonces…";
-            }
+            updateItemsCount();
             return;
         }
 
         const existingIds = new Set(
-            [...grid.querySelectorAll(".item-card")].map(
-                (card) => card.dataset.itemId
-            )
+            [...itemsGrid.querySelectorAll(".item-card")]
+                .map((card) => card.dataset.itemId)
+                .filter(Boolean)
         );
 
         const fragment = document.createDocumentFragment();
@@ -375,6 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (photo) {
                 const image = document.createElement("img");
+
                 image.className = "item-card-image";
                 image.src = photo;
                 image.alt = titleText;
@@ -407,9 +382,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const stats = document.createElement("p");
             stats.className = "item-card-stats";
-
             stats.textContent =
-                `${item.views ?? "—"} vues · ${item.favorites ?? "—"} favoris`;
+                `${item.views ?? "—"} vues · ` +
+                `${item.favorites ?? "—"} favoris`;
 
             content.append(title, price, stats);
             link.appendChild(content);
@@ -417,92 +392,479 @@ document.addEventListener("DOMContentLoaded", () => {
             fragment.appendChild(card);
         }
 
-        grid.appendChild(fragment);
+        itemsGrid.appendChild(fragment);
 
-        count.textContent =
-            `${grid.querySelectorAll(".item-card").length} annonce(s) récupérée(s).`;
+        collectedItemCount =
+            itemsGrid.querySelectorAll(".item-card").length;
+
+        updateItemsCount();
     }
 
-    renderRatingStars(null);
+    function updateItemsCount() {
+        collectedItemCount =
+            itemsGrid.querySelectorAll(".item-card").length;
 
-    if (profileStatus && !profileStatus.textContent.trim()) {
-        profileStatus.textContent =
-            "Renseigne un identifiant pour afficher un profil.";
+        if (collectedItemCount === 0) {
+            itemsCount.textContent = "Chargement des annonces…";
+        } else {
+            itemsCount.textContent =
+                `${collectedItemCount} annonce(s) récupérée(s).`;
+        }
     }
 
-    if (profileForm) {
-        profileForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
+    function finishItems(total) {
+        const actualCount =
+            itemsGrid.querySelectorAll(".item-card").length;
 
-            const memberId = memberIdInput?.value.trim() ?? "";
+        if (total === 0 || actualCount === 0) {
+            itemsGrid.replaceChildren();
+            collectedItemCount = 0;
+            itemsCount.textContent =
+                "Aucune annonce disponible pour cet utilisateur.";
+            return;
+        }
 
-            localStorage.setItem("vinted_last_member_id", memberId);
+        itemsCount.textContent =
+            `${actualCount} annonce(s) récupérée(s).`;
+    }
 
-            if (!/^\d{1,20}$/.test(memberId)) {
-                displayError(
-                    "Saisis un identifiant Vinted numérique valide."
-                );
-                memberIdInput?.focus();
+    // --------------------------------------------------
+    // LECTURE DU FLUX SSE FASTAPI
+    // --------------------------------------------------
+
+    async function fetchProfile(memberId, signal, options = {}) {
+        const refreshOnly = options.refreshOnly === true;
+        const response = await fetch(
+            `/api/profile/${encodeURIComponent(memberId)}`,
+            {
+                method: "GET",
+                headers: {
+                    Accept: "text/event-stream",
+                },
+                signal,
+            }
+        );
+
+        if (!response.ok) {
+            let message =
+                `Erreur du serveur (${response.status}).`;
+
+            try {
+                const data = await response.json();
+                message = data.detail || data.error || message;
+            } catch {
+                // La réponse n'est pas nécessairement du JSON.
+            }
+
+            throw new Error(message);
+        }
+
+        if (!response.body) {
+            throw new Error(
+                "Le navigateur ne permet pas de lire le flux."
+            );
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        let buffer = "";
+        let receivedProfile = false;
+        let receivedDone = false;
+
+        async function handleEvent(block) {
+            let eventName = "message";
+            const dataLines = [];
+
+            for (const line of block.split(/\r?\n/)) {
+                if (line.startsWith("event:")) {
+                    eventName = line.slice(6).trim();
+                } else if (line.startsWith("data:")) {
+                    dataLines.push(line.slice(5).trimStart());
+                }
+            }
+
+            if (dataLines.length === 0) {
                 return;
             }
 
-            // Interrompt la recherche précédente si elle existe.
-            currentRequest?.abort();
-
-            currentRequest = new AbortController();
-
-            if (searchButton) {
-                searchButton.disabled = true;
-                searchButton.textContent = "Recherche…";
-            }
-
-            if (profileStatus) {
-                profileStatus.textContent = "Ouverture du profil Vinted…";
-            }
-
-            const grid = document.getElementById("items-grid");
-            const count = document.getElementById("items-count");
-
-            if (grid) grid.replaceChildren();
-            if (count) count.textContent = "En attente des annonces…";
+            let data;
 
             try {
-                await fetchProfile(memberId, currentRequest.signal);
+                data = JSON.parse(dataLines.join("\n"));
+            } catch {
+                throw new Error(
+                    "Le serveur a transmis un événement invalide."
+                );
+            }
+
+            if (eventName === "profile") {
+                if (refreshOnly) {
+                    showToast("Rafraichissement des articles en cours…", "loading");
+                    receivedProfile = true;
+                    return;
+                }
+
+                sessionStorage.setItem(
+                    PROFILE_CACHE_KEY,
+                    JSON.stringify(data)
+                );
+
+                cachedItems = [];
+                sessionStorage.removeItem(ITEMS_CACHE_KEY);
+
+                displayProfile(data);
+                resetItems();
+
+                receivedProfile = true;
+
+                profileStatus.textContent =
+                    "Profil chargé. Chargement des annonces…";
+
+                showToast("Profil chargé avec succès !", "success");
+                showToast("Recherche des annonces en cours…", "loading");
+            } else if (eventName === "items") {
+                if (!receivedProfile) {
+                    throw new Error(
+                        "Les annonces ont été reçues avant le profil."
+                    );
+                }
+
+                const newItems = Array.isArray(data.items)
+                    ? data.items
+                    : [];
+
+                if (refreshOnly && cachedItems.length === 0) {
+                    itemsGrid.replaceChildren();
+                }
+
+                cachedItems.push(...newItems);
+
+                renderItems(newItems, true);
+
+                sessionStorage.setItem(
+                    ITEMS_CACHE_KEY,
+                    JSON.stringify(cachedItems)
+                );
+
+                const total = Number(
+                    data.items_count ?? collectedItemCount
+                );
+
+                itemsCount.textContent =
+                    `${collectedItemCount} annonce(s) récupérée(s)…`;
+            } else if (eventName === "done") {
+                receivedDone = true;
+
+                const total = Number(data.items_count || 0);
+
+                finishItems(total);
+
+                let message =
+                    `Profil chargé. Collecte terminée : ${total} annonce(s).`;
+
+                if (data.items_limit_reached) {
+                    message += " La limite configurée a été atteinte.";
+                }
+
+                if (data.warning) {
+                    message += ` Attention : ${data.warning}`;
+                }
+
+                profileStatus.textContent = message;
+
+                if (data.warning && profileWarning) {
+                    profileWarning.textContent = data.warning;
+                    profileWarning.hidden = false;
+                }
+
+                if (!refreshOnly) {
+                    showToast(
+                        "Annonces chargées avec succès !",
+                        "success"
+                    );
+                }
+
+            } else if (eventName === "error") {
+                throw new Error(
+                    data.error ||
+                    "Une erreur est survenue pendant la collecte."
+                );
+            }
+        }
+
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+
+                if (done) {
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+
+                const blocks = buffer.split(/\r?\n\r?\n/);
+                buffer = blocks.pop() || "";
+
+                for (const block of blocks) {
+                    await handleEvent(block);
+                }
+            }
+
+            buffer += decoder.decode();
+
+            if (buffer.trim()) {
+                await handleEvent(buffer);
+            }
+
+            if (!receivedProfile) {
+                throw new Error(
+                    "Aucune information de profil reçue du serveur."
+                );
+            }
+
+            if (!receivedDone) {
+                throw new Error(
+                    "Le flux s'est terminé avant la fin de la collecte."
+                );
+            }
+        } finally {
+            reader.releaseLock();
+        }
+    }
+
+    if (refreshItemsButton) {
+        refreshItemsButton.addEventListener("click", async () => {
+            const memberId = memberIdInput.value.trim();
+
+            if (!/^\d{1,20}$/.test(memberId)) {
+                showToast(
+                    "Identifiant utilisateur invalide.",
+                    "error"
+                );
+                return;
+            }
+
+            currentRequest?.abort();
+
+            const controller = new AbortController();
+            currentRequest = controller;
+
+            refreshItemsButton.disabled = true;
+            refreshItemsButton.textContent = "Rafraîchissement…";
+
+            // Conserve le profil affiché, mais remplace les annonces.
+            cachedItems = [];
+            sessionStorage.removeItem(ITEMS_CACHE_KEY);
+            resetItems();
+
+            itemsCount.textContent =
+                "Actualisation des annonces en cours…";
+
+            try {
+                await fetchProfile(memberId, controller.signal, {
+                    refreshOnly: true,
+                });
+
+                showToast(
+                    "Annonces rafraîchies avec succès !",
+                    "success"
+                );
             } catch (error) {
                 if (error?.name === "AbortError") {
                     return;
                 }
 
-                console.error(
-                    "Erreur lors du chargement du profil :",
-                    error
-                );
+                console.error("Erreur de rafraîchissement :", error);
 
-                displayError(
+                showToast(
                     error instanceof Error
                         ? error.message
-                        : "Impossible de charger ce profil."
+                        : "Impossible de rafraîchir les annonces.",
+                    "error"
                 );
             } finally {
-                if (searchButton) {
-                    searchButton.disabled = false;
-                    searchButton.textContent = "Rechercher";
+                if (currentRequest === controller) {
+                    currentRequest = null;
+                    refreshItemsButton.disabled = false;
+                    refreshItemsButton.innerHTML =
+                        '<span aria-hidden="true">↻</span>' +
+                        '<span class="button-label">Rafraîchir</span>';
                 }
-
-                currentRequest = null;
             }
         });
     }
 
+    // --------------------------------------------------
+    // RECHERCHE
+    // --------------------------------------------------
+
+    profileForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const memberId = memberIdInput.value.trim();
+
+        if (!/^\d{1,20}$/.test(memberId)) {
+            const message =
+                "Saisis un identifiant Vinted numérique valide.";
+
+            searchStatus.textContent = message;
+            showToast(message, "error");
+
+            memberIdInput.focus();
+            return;
+        }
+
+        // Interrompt une éventuelle recherche précédente.
+        currentRequest?.abort();
+
+        const controller = new AbortController();
+        currentRequest = controller;
+
+        profileLoaded = false;
+
+        profileCard.hidden = true;
+        itemsSection.hidden = true;
+
+        if (profileWarning) {
+            profileWarning.hidden = true;
+            profileWarning.textContent = "";
+        }
+
+        // Évite de restaurer les données de l'ancien utilisateur.
+        clearCache();
+        resetItems();
+        showSearchCard();
+
+        const loadingMessage = "Recherche du profil en cours…";
+
+        searchStatus.textContent = loadingMessage;
+        showToast(loadingMessage, "loading");
+
+        if (searchButton) {
+            searchButton.disabled = true;
+            searchButton.textContent = "Recherche…";
+        }
+
+        try {
+            await fetchProfile(memberId, controller.signal);
+
+            localStorage.setItem(
+                "vinted_last_member_id",
+                memberId
+            );
+
+        } catch (error) {
+            if (error?.name === "AbortError") {
+                return;
+            }
+
+            console.error(
+                "Erreur lors du chargement du profil :",
+                error
+            );
+
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Impossible de charger ce profil.";
+
+            displayError(message);
+            showToast(message, "error");
+
+        } finally {
+            // Une ancienne requête ne doit pas modifier
+            // les contrôles d'une recherche plus récente.
+            if (currentRequest === controller) {
+                currentRequest = null;
+
+                if (searchButton) {
+                    searchButton.disabled = false;
+                    searchButton.textContent = "Rechercher";
+                }
+            }
+        }
+    });
+
+    // --------------------------------------------------
+    // INITIALISATION ET RESTAURATION DU CACHE
+    // --------------------------------------------------
+
+    renderRatingStars(null);
+
+    searchCard.hidden = false;
+    profileCard.hidden = true;
+    itemsSection.hidden = true;
+
+    // Préremplit le dernier identifiant sans déclencher de recherche.
     if (lastMemberId && /^\d{1,20}$/.test(lastMemberId)) {
         memberIdInput.value = lastMemberId;
+    }
 
-        if (profileForm.requestSubmit) {
-            profileForm.requestSubmit();
-        } else {
-            profileForm.dispatchEvent(
-                new Event("submit", { bubbles: true, cancelable: true })
+    const savedProfile = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    const savedItems = sessionStorage.getItem(ITEMS_CACHE_KEY);
+
+    if (savedProfile) {
+        try {
+            const profileData = JSON.parse(savedProfile);
+            const itemsData = savedItems
+                ? JSON.parse(savedItems)
+                : [];
+
+            if (
+                !profileData ||
+                typeof profileData !== "object" ||
+                !Array.isArray(itemsData)
+            ) {
+                throw new Error("Cache invalide.");
+            }
+
+            const cachedMemberId =
+                profileData.member_id ??
+                lastMemberId ??
+                "";
+
+            if (/^\d{1,20}$/.test(String(cachedMemberId))) {
+                memberIdInput.value = String(cachedMemberId);
+            }
+
+            // Restaure le profil sans appeler fetchProfile().
+            displayProfile(profileData);
+
+            // Restaure les annonces enregistrées.
+            cachedItems = itemsData;
+            resetItems();
+            renderItems(cachedItems, true);
+
+            if (cachedItems.length === 0) {
+                itemsCount.textContent =
+                    "Aucune annonce enregistrée dans le cache.";
+            } else {
+                finishItems(cachedItems.length);
+            }
+
+            searchCard.hidden = true;
+            profileCard.hidden = false;
+            itemsSection.hidden = false;
+
+            if (changeMemberButton) {
+                changeMemberButton.hidden = false;
+            }
+
+            profileStatus.textContent =
+                "Données restaurées depuis le cache local.";
+
+        } catch (error) {
+            console.error(
+                "Erreur lors de la restauration du cache :",
+                error
             );
+
+            clearCache();
+
+            searchCard.hidden = false;
+            profileCard.hidden = true;
+            itemsSection.hidden = true;
         }
     }
 });

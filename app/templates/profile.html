@@ -9,13 +9,18 @@
     <script type="module" src="/static/js/profile.js"></script>
 </head>
 <body>
+    <!-- Notification globale en haut à droite -->
+    <div id="toast-container" class="toast-container"
+        aria-live="polite" aria-relevant="additions">
+    </div>
+
     <header class="site-header">
         <a href="/" class="site-logo">Vinted Watcher</a>
 
         <nav aria-label="Navigation principale" class="main-nav">
             <a href="/">Accueil</a>
             <a href="/#search">Recherche</a>
-            <a href="/#results">Annonces</a>
+            <a href="/#results">articles</a>
         </nav>
 
         <div class="saved-searches">
@@ -42,46 +47,149 @@
             </div>
         </div>
     </header>
+
     <main class="profile-page">
-        <section id="profile-result">
-            <section class="panel">
-                <div class="member-header">
-                    <img
-                        id="member-avatar"
-                        class="avatar"
-                        alt="Avatar du membre"
-                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23eeeeee'/%3E%3Ccircle cx='60' cy='43' r='22' fill='%23bdbdbd'/%3E%3Cpath d='M20 110c2-25 18-39 40-39s38 14 40 39' fill='%23bdbdbd'/%3E%3C/svg%3E"
+        <div class="page-heading">
+            <h1>Profil utilisateur</h1>
+
+            <button
+                id="change-member-button"
+                class="button-secondary button-icon"
+                type="button"
+                aria-controls="search-card"
+                aria-expanded="false"
+                title="Rechercher un autre utilisateur"
+                hidden
+            >
+                <span aria-hidden="true">⌕</span>
+                <span class="button-label">Changer de membre</span>
+            </button>
+        </div>
+
+        <!-- CARD 1 : RECHERCHE -->
+        <section
+            id="search-card"
+            class="panel search-card"
+            aria-labelledby="search-heading"
+        >
+            <div class="card-heading">
+                <h2 id="search-heading">Identifiant Vinted</h2>
+            </div>
+
+            <form id="profile-form">
+                <div class="search-row">
+                    <input
+                        id="member-id"
+                        name="member-id"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]+"
+                        placeholder="Ex. 41033389"
+                        autocomplete="off"
+                        aria-label="Identifiant Vinted"
+                        required
+                    >
+
+                    <button id="search-button" type="submit">
+                        Rechercher
+                    </button>
+                </div>
+            </form>
+
+            <p
+                id="search-status"
+                class="status-message"
+                role="status"
+                aria-live="polite"
+            >
+                Renseigne l'identifiant d'un utilisateur pour afficher son profil.
+            </p>
+        </section>
+
+        <!-- CARD 2 : PROFIL -->
+        <section
+            id="profile-card"
+            class="panel profile-card"
+            aria-labelledby="member-name"
+            hidden
+        >
+
+            <div class="member-header">
+                <img
+                    id="member-avatar"
+                    class="avatar"
+                    alt="Avatar du membre"
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='60' fill='%23eeeeee'/%3E%3Ccircle cx='60' cy='43' r='22' fill='%23bdbdbd'/%3E%3Cpath d='M20 110c2-25 18-39 40-39s38 14 40 39' fill='%23bdbdbd'/%3E%3C/svg%3E"
                 >
 
                 <div class="member-identity">
-                    <h2 id="member-name">Profil Vinted</h2>
-
-                    <form id="profile-form">
-                        <label for="member-id">Identifiant Vinted</label>
-                        <div class="search-row">
-                            <input
-                                id="member-id"
-                                name="member-id"
-                                type="text"
-                                inputmode="numeric"
-                                pattern="[0-9]+"
-                                placeholder="Ex. 41033389"
-                                autocomplete="off"
+                    <h2 id="member-name-heading">
+                        <a
+                            id="original-profile"
+                            class="member-profile-link"
+                            href="https://www.vinted.fr/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <span id="member-name">Profil Vinted</span>
+                            <svg
+                                class="external-link-icon"
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
                             >
-                            <button id="search-button" type="submit">
-                                Rechercher
-                            </button>
-                        </div>
-                    </form>
+                                <path d="M15 3h6v6"></path>
+                                <path d="M10 14 21 3"></path>
+                                <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"></path>
+                            </svg>
+                        </a>
+                    </h2>
 
-                    <p id="profile-status" role="status" aria-live="polite">
-                        Renseigne un identifiant pour afficher un profil.
+                    <p class="member-id-label">
+                        Identifiant :
+                        <a
+                            id="member-profile-id-link"
+                            class="member-id-link"
+                            href="https://www.vinted.fr/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <strong id="member-id-label">—</strong>
+                        </a>
                     </p>
 
+                    <div class="member-stats">
+                        <span class="member-stat">
+                            <strong id="ratings-count">—</strong>
+                            Évaluations
+                        </span>
+
+                        <span class="stats-separator" aria-hidden="true">·</span>
+
+                        <span class="member-stat">
+                            <strong id="followers-count">—</strong>
+                            Abonnés
+                        </span>
+
+                        <span class="stats-separator" aria-hidden="true">·</span>
+
+                        <span class="member-stat">
+                            <strong id="following-count">—</strong>
+                            Abonnements
+                        </span>
+                    </div>
                 </div>
 
-                <div class="profile-stat rating-summary">
-                    <span>Note moyenne</span>
+                <div class="rating-summary">
+                    <span class="rating-label">Note moyenne</span>
+
                     <div
                         id="rating-stars"
                         class="rating-stars"
@@ -94,46 +202,58 @@
                         <span class="rating-star empty">★</span>
                         <span class="rating-star empty">★</span>
                     </div>
+
                     <strong id="rating-average">— / 5</strong>
                 </div>
+            </div>
 
-                <a
-                    id="original-profile"
-                    class="button-link"
-                    href="https://www.vinted.fr/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >Ouvrir sur Vinted ↗</a>
+            <p
+                id="profile-status"
+                class="status-message"
+                role="status"
+                aria-live="polite"
+                style="display: none;"
+            >
+                Chargement du profil…
+            </p>
+
+            <div class="member-bio">
+                <h3>Biographie</h3>
+                <p id="member-bio">Aucune biographie renseignée.</p>
+            </div>
+
+            <p id="profile-warning" class="warning" hidden></p>
+        </section>
+
+        <!-- CARD 3 : articles -->
+        <section
+            id="items-section"
+            class="panel items-section"
+            aria-labelledby="items-heading"
+            hidden
+        >
+            <div class="items-heading">
+                <div>
+                    <h2 id="items-heading">Articles du membre</h2>
+                    <p
+                        id="items-count"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        Chargement des articles…
+                    </p>
                 </div>
-
-                <div class="member-bio">
-                    <h3>Biographie</h3>
-                    <p id="member-bio">Aucune biographie disponible.</p>
-                </div>
-
-                <div class="member-stats">
-                    <div class="stat-box">
-                        <span>Évaluations</span>
-                        <strong id="ratings-count">—</strong>
-                    </div>
-                    <div class="stat-box">
-                        <span>Abonnés</span>
-                        <strong id="followers-count">—</strong>
-                    </div>
-                    <div class="stat-box">
-                        <span>Abonnements</span>
-                        <strong id="following-count">—</strong>
-                    </div>
-                </div>
-
-                <p id="profile-warning" class="warning" hidden></p>
-            </section>
-
-            <section id="items-section" class="panel">
-                <h2>Annonces du membre</h2>
-                <p id="items-count">Chargement des annonces…</p>
-                <div id="items-grid" class="items-grid"></div>
-            </section>
+                <button
+                    id="refresh-items-button"
+                    class="button-secondary button-icon"
+                    type="button"
+                    title="Rafraîchir les articles"
+                >
+                    <span aria-hidden="true">↻</span>
+                    <span class="button-label">Rafraîchir</span>
+                </button>
+            </div>
+            <div id="items-grid" class="items-grid"></div>
         </section>
     </main>
 </body>
