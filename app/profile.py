@@ -206,11 +206,6 @@ async def iter_public_profile_events(
                         "Certaines données du profil sont absentes du DOM."
                     )
 
-                if total_items == 0:
-                    warning_messages.append(
-                        "Aucune annonce trouvée dans la grille DOM."
-                    )
-
                 warning = " ".join(warning_messages) or None
 
                 yield {

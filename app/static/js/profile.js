@@ -27,6 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const originalProfile = document.getElementById("original-profile");
 
+    const itemsSearch = document.getElementById("items-search");
+    const priceMinInput = document.getElementById("price-min");
+    const priceMaxInput = document.getElementById("price-max");
+    const priceMinValue = document.getElementById("price-min-value");
+    const priceMaxValue = document.getElementById("price-max-value");
+    
     const refreshItemsButton = document.getElementById("refresh-items-button");
     const itemsGrid = document.getElementById("items-grid");
     const itemsCount = document.getElementById("items-count");
@@ -274,6 +280,123 @@ document.addEventListener("DOMContentLoaded", () => {
     // AFFICHAGE DES ANNONCES
     // --------------------------------------------------
 
+    function parsePrice(value) {
+        if (typeof value === "number") {
+            return Number.isFinite(value) ? value : null;
+        }
+
+        if (typeof value !== "string" || !value.trim()) {
+            return null;
+        }
+
+        // Extrait un prix comme "12,50 €" ou "12 €".
+        const match = value.match(
+            /\d[\d\s\u00a0\u202f]*(?:[,.]\d{1,2})?/
+        );
+
+        if (!match) {
+            return null;
+        }
+
+        const normalized = match[0]
+            .replace(/[\s\u00a0\u202f]/g, "")
+            .replace(",", ".");
+
+        const price = Number(normalized);
+
+        return Number.isFinite(price) ? price : null;
+    }
+
+    function formatPrice(value) {
+        return new Intl.NumberFormat("fr-FR", {
+            style: "currency",
+            currency: "EUR",
+            maximumFractionDigits: 2
+        }).format(value);
+    }
+
+    
+    function updatePriceControls(reset = false) {
+        if (!priceMinInput || !priceMaxInput) return;
+
+        const cards = [...itemsGrid.querySelectorAll(".item-card")];
+
+        const prices = cards
+            .map((card) => parsePrice(card.dataset.price))
+            .filter((price) => price !== null);
+
+        const highestPrice = prices.length
+            ? Math.max(...prices)
+            : 100;
+
+        const newMax = Math.max(
+            100,
+            Math.ceil(highestPrice / 10) * 10
+        );
+
+        const oldMax = Number(priceMaxInput.max) || newMax;
+        const oldMaxValue = Number(priceMaxInput.value);
+        const wasUnrestricted = oldMaxValue >= oldMax;
+
+        priceMinInput.min = "0";
+        priceMaxInput.min = "0";
+        priceMinInput.max = String(newMax);
+        priceMaxInput.max = String(newMax);
+
+        if (reset) {
+            priceMinInput.value = "0";
+            priceMaxInput.value = String(newMax);
+        } else {
+            priceMinInput.value = String(
+                Math.min(Number(priceMinInput.value) || 0, newMax)
+            );
+
+            priceMaxInput.value = String(
+                wasUnrestricted
+                    ? newMax
+                    : Math.min(oldMaxValue, newMax)
+            );
+        }
+
+        if (Number(priceMinInput.value) > Number(priceMaxInput.value)) {
+            priceMinInput.value = priceMaxInput.value;
+        }
+
+        priceMinValue.textContent = formatPrice(
+            Number(priceMinInput.value)
+        );
+
+        priceMaxValue.textContent = formatPrice(
+            Number(priceMaxInput.value)
+        );
+
+        updatePriceSliderVisual();
+    }
+
+    function updatePriceSliderVisual() {
+        if (!priceMinInput || !priceMaxInput) return;
+
+        const min = Number(priceMinInput.min);
+        const max = Number(priceMinInput.max);
+        const minValue = Number(priceMinInput.value);
+        const maxValue = Number(priceMaxInput.value);
+        const range = max - min || 1;
+
+        const left = ((minValue - min) / range) * 100;
+        const right = ((maxValue - min) / range) * 100;
+
+        const selected = document.getElementById("price-range-selected");
+
+        if (selected) {
+            selected.style.left = `${left}%`;
+            selected.style.width = `${right - left}%`;
+        }
+
+        priceMinValue.textContent = formatPrice(minValue);
+        priceMaxValue.textContent = formatPrice(maxValue);
+    }
+
+
     function renderItems(items, append = false) {
         if (!append) {
             itemsGrid.replaceChildren();
@@ -281,6 +404,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!Array.isArray(items) || items.length === 0) {
+            updatePriceControls(!append);
+            filterItems();
             updateItemsCount();
             return;
         }
@@ -307,6 +432,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 card.dataset.itemId = itemId;
                 existingIds.add(itemId);
             }
+
+            // Prix numérique utilisé par les filtres.
+            const rawPrice = item.price ?? item.price_text;
+            const numericPrice = parsePrice(rawPrice);
+
+            card.dataset.price = numericPrice === null
+                ? ""
+                : String(numericPrice);
 
             const link = document.createElement("a");
             link.className = "item-card-link";
@@ -382,9 +515,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const stats = document.createElement("p");
             stats.className = "item-card-stats";
-            stats.textContent =
-                `${item.views ?? "—"} vues · ` +
-                `${item.favorites ?? "—"} favoris`;
 
             content.append(title, price, stats);
             link.appendChild(content);
@@ -397,7 +527,64 @@ document.addEventListener("DOMContentLoaded", () => {
         collectedItemCount =
             itemsGrid.querySelectorAll(".item-card").length;
 
-        updateItemsCount();
+        updatePriceControls(!append);
+        filterItems();
+    }
+
+    function filterItems() {
+        if (!itemsSearch || !priceMinInput || !priceMaxInput) {
+            return;
+        }
+
+        const query = itemsSearch.value
+            .trim()
+            .toLocaleLowerCase("fr");
+
+        const minPrice = Number(priceMinInput.value);
+        const maxPrice = Number(priceMaxInput.value);
+
+        const priceFilterActive =
+            minPrice > 0 ||
+            maxPrice < Number(priceMaxInput.max);
+
+        const cards = itemsGrid.querySelectorAll(".item-card");
+
+        let visibleCount = 0;
+
+        cards.forEach((card) => {
+            const title = card
+                .querySelector(".item-card-title")
+                ?.textContent
+                .toLocaleLowerCase("fr") || "";
+
+            const price = parsePrice(card.dataset.price);
+
+            const matchesTitle = title.includes(query);
+
+            // Sans filtre de prix, les annonces sans prix restent visibles.
+            const matchesPrice = price === null
+                ? !priceFilterActive
+                : price >= minPrice && price <= maxPrice;
+
+            const matches = matchesTitle && matchesPrice;
+
+            card.hidden = !matches;
+
+            if (matches) {
+                visibleCount++;
+            }
+        });
+
+        if (query || priceFilterActive) {
+            itemsCount.textContent =
+                `${visibleCount} article(s) trouvé(s) sur ${cards.length}.`;
+        } else {
+            updateItemsCount();
+        }
+    }
+
+    if (itemsSearch) {
+        itemsSearch.addEventListener("input", filterItems);
     }
 
     function updateItemsCount() {
@@ -866,5 +1053,35 @@ document.addEventListener("DOMContentLoaded", () => {
             profileCard.hidden = true;
             itemsSection.hidden = true;
         }
+    }
+
+    if (itemsSearch) {
+        itemsSearch.addEventListener("input", filterItems);
+    }
+
+    function handlePriceChange(changedInput) {
+        const minValue = Number(priceMinInput.value);
+        const maxValue = Number(priceMaxInput.value);
+
+        if (minValue > maxValue) {
+            if (changedInput === priceMinInput) {
+                priceMaxInput.value = priceMinInput.value;
+            } else {
+                priceMinInput.value = priceMaxInput.value;
+            }
+        }
+
+        updatePriceSliderVisual();
+        filterItems();
+    }
+
+    if (priceMinInput && priceMaxInput) {
+        priceMinInput.addEventListener("input", () => {
+            handlePriceChange(priceMinInput);
+        });
+
+        priceMaxInput.addEventListener("input", () => {
+            handlePriceChange(priceMaxInput);
+        });
     }
 });
