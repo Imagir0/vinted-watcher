@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Profil utilisateur — Vinted Watcher</title>
     <link rel="stylesheet" href="/static/css/profile.css">
-    <script type="module" src="/static/js/profile.js"></script>
+    <script type="module" src="/static/js/profile/profile.js"></script>
 </head>
 <body>
     <!-- Notification globale en haut à droite -->
@@ -251,45 +251,51 @@
                     </p>
                 </div>
                 <div class="items-toolbar">
-                <input
-                    id="items-search"
-                    class="items-search"
-                    type="search"
-                    placeholder="Rechercher un article…"
-                    aria-label="Rechercher parmi les articles affichés"
-                    autocomplete="off"
-                />
-                <div class="price-filter">
-                    <div class="price-filter-labels">
-                        <span><strong id="price-min-value">0 €</strong></span>
-                        <div class="range-slider" id="price-range-slider">
-                            <div class="range-slider-track"></div>
-                            <div class="range-slider-selected" id="price-range-selected"></div>
+                <div id="items-filters">
+                    <input
+                        id="items-search"
+                        class="items-search"
+                        type="search"
+                        placeholder="Rechercher un article…"
+                        aria-label="Rechercher parmi les articles affichés"
+                        autocomplete="off"
+                    />
 
-                            <input
-                            id="price-min"
-                            type="range"
-                            min="0"
-                            max="500"
-                            value="0"
-                            step="1"
-                            aria-label="Prix minimum"
-                            />
+                    <div class="price-filter">
+                        <div class="price-filter-labels">
+                            <span><strong id="price-min-value">0 €</strong></span>
 
-                            <input
-                            id="price-max"
-                            type="range"
-                            min="0"
-                            max="500"
-                            value="500"
-                            step="1"
-                            aria-label="Prix maximum"
-                            />
+                            <div class="range-slider" id="price-range-slider">
+                                <div class="range-slider-track"></div>
+                                <div
+                                    class="range-slider-selected"
+                                    id="price-range-selected"
+                                ></div>
+
+                                <input
+                                    id="price-min"
+                                    type="range"
+                                    min="0"
+                                    max="500"
+                                    value="0"
+                                    step="1"
+                                    aria-label="Prix minimum"
+                                />
+
+                                <input
+                                    id="price-max"
+                                    type="range"
+                                    min="0"
+                                    max="500"
+                                    value="500"
+                                    step="1"
+                                    aria-label="Prix maximum"
+                                />
+                            </div>
+
+                            <span><strong id="price-max-value">500 €</strong></span>
                         </div>
-                        <span><strong id="price-max-value">500 €</strong></span>
                     </div>
-
-                    
                 </div>
                 <button
                     id="refresh-items-button"

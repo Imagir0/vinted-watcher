@@ -70,7 +70,7 @@ $("scan-btn").addEventListener("click", async () => {
 
         await loadItems();
 
-        notice(`Scan terminé : ${result.new_items} nouvelle(s) annonce(s).`);
+        notice(`Scan terminé : ${result.new_items} nouveau(x) article(s).`);
     } catch (error) {
         notice(`Échec du scan : ${error.message}`, true);
     } finally {
@@ -116,7 +116,7 @@ async function init() {
         await loadConfig();
         await loadItems();
 
-        notice("Prêt. Les annonces affichées sont celles déjà enregistrées par le scanner.");
+        notice("Prêt. Les articles affichés sont ceux déjà enregistrés par le scanner.");
 
         setInterval(async () => {
             try {

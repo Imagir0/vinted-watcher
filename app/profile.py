@@ -52,7 +52,7 @@ async def iter_public_profile_events(
         yield {
             "event": "error",
             "data": {
-                "error": "La limite d'annonces doit être supérieure ou égale à 1."
+                "error": "La limite d'articles doit être supérieure ou égale à 1."
             },
         }
         return

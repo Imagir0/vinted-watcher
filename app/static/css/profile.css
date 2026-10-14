@@ -525,17 +525,26 @@ input:focus-visible {
 }
 
 .rating-star {
-    position: relative;
     display: inline-block;
     color: #d6d6d6;
     font-size: 23px;
+    line-height: 1;
 }
 
+/* Étoiles vides */
 .rating-star.empty {
     color: #d6d6d6;
+    background: none;
 }
 
+/* Étoiles notées : remplissage jaune */
 .rating-star:not(.empty) {
+    color: #f5b800;
+    background: none;
+}
+
+/* Remplissage partiel, si --star-fill est défini en pourcentage */
+.rating-star.partial {
     background: linear-gradient(
         90deg,
         #f5b800 var(--star-fill),
@@ -1159,5 +1168,92 @@ input:focus-visible {
     .item-card {
         animation: none;
         transition: none;
+    }
+}
+
+
+/* Cartes d'annonces : classes utilisées par profile-items.js */
+
+.item-image-container {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    background: #f2f4f7;
+}
+
+.item-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.item-content {
+    display: flex;
+    flex-direction: column;
+    padding: 13px;
+}
+
+.item-title {
+    display: -webkit-box;
+    height: 42px;
+    margin: 0 0 10px;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.item-price {
+    margin: 0 0 5px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.item-condition {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+
+/* Recherche et filtres de prix côte à côte */
+
+#items-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+#items-filters .items-search {
+    flex: 1;
+    width: auto;
+    min-width: 180px;
+}
+
+#items-filters .price-filter {
+    flex: 0 1 300px;
+    width: 300px;
+    min-width: 240px;
+}
+
+@media (max-width: 600px) {
+    #items-filters {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #items-filters .items-search,
+    #items-filters .price-filter {
+        width: 100%;
+        min-width: 0;
+        flex: none;
     }
 }
