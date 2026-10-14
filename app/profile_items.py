@@ -88,10 +88,11 @@ def _extract_visible_items(page):
 
                 if (!id) continue;
 
-                const title =
+                const title = (
                     link?.getAttribute('title') ||
                     image?.getAttribute('alt') ||
-                    'Annonce Vinted';
+                    'Annonce Vinted'
+                ).split(',', 1)[0].trim();
 
                 items.push({
                     id,
