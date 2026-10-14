@@ -1,10 +1,16 @@
 import logging
+import json
+
+from fastapi.responses import StreamingResponse
+from .profile import iter_public_profile_events, ProfileFetchError
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from fastapi import HTTPException, Query
+from fastapi.responses import HTMLResponse
 
 from . import database as db
 from . import scanner
@@ -19,6 +25,7 @@ app = FastAPI(title="Vinted Web Scanner")
 
 BASE_DIR = Path(__file__).resolve().parent
 INDEX_PATH = BASE_DIR / "templates" / "index.html"
+PROFILE_PATH = BASE_DIR / "templates" / "profile.html"
 
 app.mount(
     "/static",
@@ -167,3 +174,36 @@ def legacy_items(limit: int = 500):
 def reset():
     db.reset_state()
     return {"ok": True}
+
+
+@app.get("/profile", response_class=HTMLResponse)
+def profile_page():
+    if not PROFILE_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail="Le template profile.html est introuvable.",
+        )
+    return FileResponse(PROFILE_PATH, media_type="text/html")
+
+
+
+@app.get("/api/profile/{member_id}")
+def profile_data(member_id: str):
+    def event_stream():
+        for message in iter_public_profile_events(member_id):
+            event = message["event"]
+            data = json.dumps(
+                message["data"],
+                ensure_ascii=False,
+            )
+
+            yield f"event: {event}\ndata: {data}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

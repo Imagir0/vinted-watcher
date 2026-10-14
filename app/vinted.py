@@ -60,6 +60,12 @@ class VintedClient:
     def fetch_items(self, params: dict, max_pages: int) -> list:
         items = []
         page = 1
+
+        if page_items:
+            logger.info(
+                "Clés disponibles dans une annonce : %s",
+                list(page_items[0].keys())
+            )
         while page <= max_pages:
             response = self.session.get(
                 f"{VINTED_API_URL}/svc-catalogue/items",
