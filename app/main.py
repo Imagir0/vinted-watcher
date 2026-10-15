@@ -186,7 +186,6 @@ def profile_page():
     return FileResponse(PROFILE_PATH, media_type="text/html")
 
 
-
 @app.get("/api/profile/{member_id}")
 def profile_data(member_id: str):
     async def event_stream():
@@ -207,3 +206,19 @@ def profile_data(member_id: str):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+GLOBAL_SEARCH_PATH = (
+    BASE_DIR / "templates" / "global-search" / "global-search.html"
+)
+
+
+@app.get("/global-search", response_class=HTMLResponse)
+def global_search_page():
+    if not GLOBAL_SEARCH_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Template introuvable : {GLOBAL_SEARCH_PATH}",
+        )
+
+    return FileResponse(GLOBAL_SEARCH_PATH, media_type="text/html")
