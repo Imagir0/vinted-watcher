@@ -1,4 +1,3 @@
-
 import logging
 import re
 from urllib.parse import urlparse
@@ -9,7 +8,7 @@ from playwright.async_api import (
 )
 
 from .profile_info import _extract_profile_data
-from .database import get_cached_profile, save_cached_profile
+from ..database import get_cached_profile, save_cached_profile
 from .profile_items import (
     BATCH_SIZE,
     MAX_ITEMS,
