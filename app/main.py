@@ -228,14 +228,6 @@ def stats():
     return db.get_price_trend(keys)
 
 
-@app.get("/api/items-legacy")
-def legacy_items(limit: int = 500):
-    """Accès à toutes les annonces, conservé pour le diagnostic."""
-    return {
-        "items": db.list_items(limit=limit),
-    }
-
-
 @app.post("/api/reset")
 def reset():
     db.reset_state()
