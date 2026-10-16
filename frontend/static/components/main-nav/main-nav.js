@@ -31,13 +31,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             let isCurrent = false;
 
             if (nav === "search") {
-                isCurrent =
-                    currentPath === "/" &&
-                    (!currentHash ||
-                    currentHash === "#search" ||
-                    currentHash === "#results");
-            } else if (nav === "global-search") {
-                isCurrent = currentPath === "/global-search";
+                isCurrent = currentPath === "/search";
+            } else if (nav === "scan") {
+                isCurrent = currentPath === "/scan";
             } else if (nav === "profile") {
                 isCurrent = currentPath === "/profile";
             } else if (link.classList.contains("nav-home")) {

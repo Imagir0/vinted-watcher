@@ -29,6 +29,7 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_DIR / "frontend"
 STATIC_DIR = FRONTEND_DIR / "static"
+FAVICON_PATH = BASE_DIR / "static" / "favicon.ico"
 
 INDEX_PATH = FRONTEND_DIR / "index.html"
 
@@ -36,11 +37,18 @@ PROFILE_PATH = (
     STATIC_DIR / "components" / "profile" / "profile.html"
 )
 
-GLOBAL_SEARCH_PATH = (
+SEARCH_PATH = (
     STATIC_DIR
     / "components"
-    / "global-search"
-    / "global-search.html"
+    / "search"
+    / "search.html"
+)
+
+SCAN_PATH = (
+    STATIC_DIR
+    / "components"
+    / "scan"
+    / "scan.html"
 )
 
 # Fichiers statiques : CSS, JavaScript, images, composants HTML, etc.
@@ -49,6 +57,19 @@ app.mount(
     StaticFiles(directory=STATIC_DIR),
     name="static",
 )
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    if not FAVICON_PATH.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Favicon introuvable.",
+        )
+
+    return FileResponse(
+        FAVICON_PATH,
+        media_type="image/x-icon",
+    )
 
 # Fichiers assets : images, sons...
 app.mount(
@@ -117,6 +138,34 @@ def index():
     return FileResponse(INDEX_PATH, media_type="text/html")
 
 
+@app.get("/search", response_class=FileResponse)
+def global_search_page():
+    if not SEARCH_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Fichier search.html introuvable : "
+                f"{SEARCH_PATH}"
+            ),
+        )
+
+    return FileResponse(SEARCH_PATH, media_type="text/html")
+
+
+@app.get("/scan", response_class=FileResponse)
+def scan_page():
+    if not SCAN_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Fichier scan.html introuvable : "
+                f"{SCAN_PATH}"
+            ),
+        )
+
+    return FileResponse(SCAN_PATH, media_type="text/html")
+
+
 @app.get("/profile", response_class=FileResponse)
 def profile_page():
     if not PROFILE_PATH.is_file():
@@ -126,20 +175,6 @@ def profile_page():
         )
 
     return FileResponse(PROFILE_PATH, media_type="text/html")
-
-
-@app.get("/global-search", response_class=FileResponse)
-def global_search_page():
-    if not GLOBAL_SEARCH_PATH.is_file():
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Fichier global-search.html introuvable : "
-                f"{GLOBAL_SEARCH_PATH}"
-            ),
-        )
-
-    return FileResponse(GLOBAL_SEARCH_PATH, media_type="text/html")
 
 
 @app.get("/api/config")
