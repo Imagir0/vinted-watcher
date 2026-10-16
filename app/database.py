@@ -145,16 +145,6 @@ def active_search_keys(queries: list) -> list[str]:
     })
 
 
-def list_items(limit: int = 500, newest: bool = True):
-    order = "DESC" if newest else "ASC"
-    with lock, connect() as conn:
-        rows = conn.execute(
-            f"SELECT * FROM items ORDER BY rowid {order} LIMIT ?",
-            (limit,),
-        ).fetchall()
-    return [dict(row) for row in rows]
-
-
 def list_items_for_searches(search_keys: list[str], limit: int = 2000):
     if not search_keys:
         return []
@@ -356,26 +346,6 @@ def mark_seen(item_id: str):
         conn.execute(
             "INSERT OR IGNORE INTO seen (id) VALUES (?)",
             (str(item_id),),
-        )
-
-
-def insert_item(item: dict):
-    """Compatibilité avec les anciens appels."""
-    with lock, connect() as conn:
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO items
-            (
-                id, title, url, price, total_price, currency,
-                favourite_count, image, brand, size, description, found_at
-            )
-            VALUES
-            (
-                :id, :title, :url, :price, :total_price, :currency,
-                :favourite_count, :image, :brand, :size, :description, :found_at
-            )
-            """,
-            item,
         )
 
 

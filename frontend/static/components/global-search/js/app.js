@@ -141,6 +141,10 @@ async function refreshSavedSearches() {
     const list = $("saved-searches-list");
     const empty = document.querySelector(".saved-searches-empty");
 
+    if (!list || !empty) {
+        throw new Error("Le menu des recherches enregistrées est incomplet.");
+    }
+
     list.replaceChildren();
 
     const searches = data.items || [];
@@ -228,6 +232,11 @@ $("saved-searches-btn").addEventListener("click", async () => {
         "aria-expanded",
         String(opening)
     );
+});
+
+$("saved-searches-close").addEventListener("click", () => {
+    $("saved-searches-menu").hidden = true;
+    $("saved-searches-btn").setAttribute("aria-expanded", "false");
 });
 
 async function saveCurrentSearch() {

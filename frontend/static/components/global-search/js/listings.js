@@ -117,7 +117,7 @@ export function renderItems() {
     $("listings").innerHTML = items.map(item => {
         const title = escapeHtml(item.title || "Annonce sans titre");
 
-        const url = /^https:\/\/www\.vinted\./i.test(item.url || "")
+        const url = /^https?:\/\/(?:www\.)?vinted\./i.test(item.url || "")
             ? item.url
             : "";
 

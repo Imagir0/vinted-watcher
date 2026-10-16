@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
         const response = await fetch(
-            "/static/components/main-nav.html"
+            "/static/components/main-nav/main-nav.html"
         );
 
         if (!response.ok) {

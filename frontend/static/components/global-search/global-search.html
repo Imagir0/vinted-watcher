@@ -1,12 +1,13 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Vinted Watcher</title>
-<link rel="stylesheet" href="/static/css/style.css">
-<link rel="stylesheet" href="/static/css/components/main-nav.css">
-<script type="module" src="/static/js/components/main-nav.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Recherche globale — Vinted Watcher</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/components/main-nav/main-nav.css">
+    <link rel="stylesheet" href="/static/components/global-search/global-search.css">
+    <script type="module" src="/static/components/main-nav/main-nav.js"></script>
 </head>
 <body>
 
@@ -99,18 +100,65 @@
                 </div>
 
                 <div class="actions">
-
-                    <button class="action-button secondary" type="button" id="scan-btn">
+                    <button
+                        class="action-button secondary"
+                        type="button"
+                        id="scan-btn"
+                    >
                         Lancer un scan
                     </button>
 
-                    <button class="action-button" type="button" id="auto-btn">
+                    <button
+                        class="action-button"
+                        type="button"
+                        id="auto-btn"
+                    >
                         Démarrer l'auto-scan
                     </button>
 
-                    <button id="save-search-btn" class="action-button" type="button">
+                    <button
+                        id="save-search-btn"
+                        class="action-button"
+                        type="button"
+                    >
                         Enregistrer la recherche
                     </button>
+
+                    <button
+                        id="saved-searches-btn"
+                        class="action-button secondary"
+                        type="button"
+                        aria-expanded="false"
+                        aria-controls="saved-searches-menu"
+                    >
+                        Mes recherches enregistrées
+                        <span aria-hidden="true">▾</span>
+                    </button>
+                </div>
+
+                <div
+                    id="saved-searches-menu"
+                    class="saved-searches-menu"
+                    hidden
+                >
+                    <div class="saved-searches-header">
+                        <h3>Mes recherches</h3>
+
+                        <button
+                            type="button"
+                            id="saved-searches-close"
+                            class="saved-searches-close"
+                            aria-label="Fermer les recherches enregistrées"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <p class="saved-searches-empty muted" hidden>
+                        Aucune recherche enregistrée pour le moment.
+                    </p>
+
+                    <div id="saved-searches-list" class="saved-searches-list"></div>
                 </div>
 
             </form>
@@ -226,6 +274,6 @@
     </section>
 
 </main>
-<script type="module" src="/static/js/app.js"></script>
+<script type="module" src="/static/components/global-search/js/app.js"></script>
 </body>
 </html>

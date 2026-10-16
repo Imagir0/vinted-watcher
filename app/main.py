@@ -1,19 +1,20 @@
 import logging
 import json
-
-from fastapi.responses import StreamingResponse
-from .profile import iter_public_profile_events, ProfileFetchError
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from fastapi import HTTPException, Query
-from fastapi.responses import HTMLResponse
 
 from . import database as db
 from . import scanner
+from .profile.profile import iter_public_profile_events
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,20 +24,73 @@ logging.basicConfig(
 
 app = FastAPI(title="Vinted Web Scanner")
 
+# Chemins du projet
 BASE_DIR = Path(__file__).resolve().parent
-INDEX_PATH = BASE_DIR / "templates" / "index.html"
-PROFILE_PATH = BASE_DIR / "templates" / "profile.html"
+PROJECT_DIR = BASE_DIR.parent
+FRONTEND_DIR = PROJECT_DIR / "frontend"
+STATIC_DIR = FRONTEND_DIR / "static"
 
+INDEX_PATH = FRONTEND_DIR / "index.html"
+
+PROFILE_PATH = (
+    STATIC_DIR / "components" / "profile" / "profile.html"
+)
+
+GLOBAL_SEARCH_PATH = (
+    STATIC_DIR
+    / "components"
+    / "global-search"
+    / "global-search.html"
+)
+
+# Fichiers statiques : CSS, JavaScript, images, composants HTML, etc.
 app.mount(
     "/static",
-    StaticFiles(directory=BASE_DIR / "static"),
+    StaticFiles(directory=STATIC_DIR),
     name="static",
 )
+
+# Fichiers assets : images, sons...
+app.mount(
+    "/assets",
+    StaticFiles(directory=FRONTEND_DIR / "assets"),
+    name="assets",
+)
+
+# Fichier css index
+@app.get("/index.css")
+def index_css():
+    css_path = FRONTEND_DIR / "index.css"
+
+    if not css_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Fichier index.css introuvable.",
+        )
+
+    return FileResponse(css_path, media_type="text/css")
+
+
+@app.get("/profile.js")
+def profile_js():
+    js_path = BASE_DIR / "profile" / "profile.js"
+
+    if not js_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Fichier profile.js introuvable : {js_path}",
+        )
+
+    return FileResponse(
+        js_path,
+        media_type="application/javascript",
+    )
 
 
 @app.on_event("startup")
 def startup():
     db.init_db()
+
     if db.get_config().get("auto_scan"):
         scanner.start_auto()
 
@@ -54,7 +108,38 @@ class SavedSearchLoad(BaseModel):
 
 @app.get("/")
 def index():
-    return FileResponse(INDEX_PATH)
+    if not INDEX_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Fichier index.html introuvable : {INDEX_PATH}",
+        )
+
+    return FileResponse(INDEX_PATH, media_type="text/html")
+
+
+@app.get("/profile", response_class=FileResponse)
+def profile_page():
+    if not PROFILE_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Fichier profile.html introuvable : {PROFILE_PATH}",
+        )
+
+    return FileResponse(PROFILE_PATH, media_type="text/html")
+
+
+@app.get("/global-search", response_class=FileResponse)
+def global_search_page():
+    if not GLOBAL_SEARCH_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Fichier global-search.html introuvable : "
+                f"{GLOBAL_SEARCH_PATH}"
+            ),
+        )
+
+    return FileResponse(GLOBAL_SEARCH_PATH, media_type="text/html")
 
 
 @app.get("/api/config")
@@ -73,21 +158,32 @@ def update_config(update: ConfigUpdate):
 
     if "interval_seconds" in updates:
         updates["interval_seconds"] = max(
-            60, updates["interval_seconds"]
+            60,
+            updates["interval_seconds"],
         )
 
     db.set_config(updates)
-    return db.get_config() | {"auto_running": scanner.is_running()}
+
+    return db.get_config() | {
+        "auto_running": scanner.is_running(),
+    }
 
 
 @app.post("/api/scan")
 def scan_now():
     try:
-        return {"ok": True, "new_items": scanner.run_scan()}
+        return {
+            "ok": True,
+            "new_items": scanner.run_scan(),
+        }
     except Exception as exc:
         logging.exception("Échec du scan manuel")
+
         return JSONResponse(
-            {"ok": False, "error": str(exc)},
+            {
+                "ok": False,
+                "error": str(exc),
+            },
             status_code=500,
         )
 
@@ -100,11 +196,17 @@ def auto(action: str):
         scanner.stop_auto()
     else:
         return JSONResponse(
-            {"ok": False, "error": "action inconnue"},
+            {
+                "ok": False,
+                "error": "action inconnue",
+            },
             status_code=400,
         )
 
-    return {"ok": True, "auto_running": scanner.is_running()}
+    return {
+        "ok": True,
+        "auto_running": scanner.is_running(),
+    }
 
 
 @app.get("/api/items")
@@ -112,7 +214,11 @@ def items(limit: int = 2000):
     cfg = db.get_config()
     keys = db.active_search_keys(cfg.get("queries", []))
     results = db.list_items_for_searches(keys, limit=limit)
-    return {"count": len(results), "items": results}
+
+    return {
+        "count": len(results),
+        "items": results,
+    }
 
 
 @app.get("/api/stats")
@@ -122,15 +228,27 @@ def stats():
     return db.get_price_trend(keys)
 
 
+@app.post("/api/reset")
+def reset():
+    db.reset_state()
+    return {"ok": True}
+
+
 @app.get("/api/saved-searches")
 def get_saved_searches():
-    return {"items": db.list_saved_searches()}
+    return {
+        "items": db.list_saved_searches(),
+    }
 
 
 @app.post("/api/saved-searches")
 def create_saved_search():
     saved = db.save_search(db.get_config())
-    return {"ok": True, "item": saved}
+
+    return {
+        "ok": True,
+        "item": saved,
+    }
 
 
 @app.post("/api/saved-searches/load")
@@ -139,7 +257,10 @@ def load_saved_search(data: SavedSearchLoad):
 
     if saved is None:
         return JSONResponse(
-            {"ok": False, "error": "Recherche introuvable."},
+            {
+                "ok": False,
+                "error": "Recherche introuvable.",
+            },
             status_code=404,
         )
 
@@ -157,33 +278,14 @@ def load_saved_search(data: SavedSearchLoad):
 def remove_saved_search(search_id: int):
     if not db.delete_saved_search(search_id):
         return JSONResponse(
-            {"ok": False, "error": "Recherche introuvable."},
+            {
+                "ok": False,
+                "error": "Recherche introuvable.",
+            },
             status_code=404,
         )
 
     return {"ok": True}
-
-
-@app.get("/api/items-legacy")
-def legacy_items(limit: int = 500):
-    """Accès à toutes les annonces, conservé pour les besoins de diagnostic."""
-    return {"items": db.list_items(limit=limit)}
-
-
-@app.post("/api/reset")
-def reset():
-    db.reset_state()
-    return {"ok": True}
-
-
-@app.get("/profile", response_class=HTMLResponse)
-def profile_page():
-    if not PROFILE_PATH.is_file():
-        raise HTTPException(
-            status_code=500,
-            detail="Le template profile.html est introuvable.",
-        )
-    return FileResponse(PROFILE_PATH, media_type="text/html")
 
 
 @app.get("/api/profile/{member_id}")
@@ -206,19 +308,3 @@ def profile_data(member_id: str):
             "X-Accel-Buffering": "no",
         },
     )
-
-
-GLOBAL_SEARCH_PATH = (
-    BASE_DIR / "templates" / "global-search" / "global-search.html"
-)
-
-
-@app.get("/global-search", response_class=HTMLResponse)
-def global_search_page():
-    if not GLOBAL_SEARCH_PATH.is_file():
-        raise HTTPException(
-            status_code=500,
-            detail=f"Template introuvable : {GLOBAL_SEARCH_PATH}",
-        )
-
-    return FileResponse(GLOBAL_SEARCH_PATH, media_type="text/html")
