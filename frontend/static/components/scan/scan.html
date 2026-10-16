@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Recherche globale — Vinted Watcher</title>
+    <title>Scan — Vinted Watcher</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/components/main-nav/main-nav.css">
-    <link rel="stylesheet" href="/static/components/search/search.css">
+    <link rel="stylesheet" href="/static/components/scan/scan.css">
     <script type="module" src="/static/components/main-nav/main-nav.js"></script>
 </head>
 <body>
@@ -55,8 +55,61 @@
                     </div>
 
                     <div class="field">
-                        <label for="catalog_id">Identifiant de catégorie</label>
-                        <input id="catalog_id" placeholder="ID de catalogue">
+                        <label for="category-picker-trigger">Catégorie</label>
+
+                        <input type="hidden" id="catalog_id" value="">
+
+                        <div class="category-picker" id="category-picker">
+                            <button
+                                type="button"
+                                id="category-picker-trigger"
+                                class="category-picker-trigger"
+                                aria-expanded="false"
+                                aria-controls="category-picker-panel"
+                            >
+                                <span id="category-picker-selection">
+                                    Toutes les catégories
+                                </span>
+                                <span aria-hidden="true">⌄</span>
+                            </button>
+
+                            <div
+                                id="category-picker-panel"
+                                class="category-picker-panel"
+                                hidden
+                            >
+                                <div class="category-picker-header">
+                                    <button
+                                        type="button"
+                                        id="category-picker-back"
+                                        class="category-picker-back"
+                                        hidden
+                                        aria-label="Retour aux catégories précédentes"
+                                    >
+                                        ←
+                                    </button>
+
+                                    <strong id="category-picker-title">
+                                        Toutes les catégories
+                                    </strong>
+
+                                    <button
+                                        type="button"
+                                        id="category-picker-close"
+                                        class="category-picker-close"
+                                        aria-label="Fermer"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+
+                                <div
+                                    id="category-picker-list"
+                                    class="category-picker-list"
+                                    role="list"
+                                ></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="field">
@@ -134,7 +187,28 @@
                         Mes recherches enregistrées
                         <span aria-hidden="true">▾</span>
                     </button>
+
+                    <button
+                        id="sync-filters-btn"
+                        class="action-button secondary"
+                        type="button"
+                    >
+                        Synchroniser les filtres Vinted
+                    </button>
+                    <div id="categories-total" class="categories-total">
+                        Nombre de catégories : — 
+                    </div>
+
                 </div>
+                <p
+                    id="filters-sync-status"
+                    class="status"
+                    role="status"
+                    aria-live="polite"
+                >
+                    Référentiel des filtres non vérifié.
+                </p>
+
 
                 <div
                     id="saved-searches-menu"
@@ -275,5 +349,6 @@
 
 </main>
 <script type="module" src="/static/components/scan/js/app.js"></script>
+<script type="module" src="/static/components/scan/js/filters-sync.js"></script>
 </body>
 </html>

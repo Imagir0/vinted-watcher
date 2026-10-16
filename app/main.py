@@ -1,5 +1,7 @@
 import logging
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -13,6 +15,7 @@ from pydantic import BaseModel
 
 from . import database as db
 from . import scanner
+from . import filters_sync
 from .profile.profile import iter_public_profile_events
 
 
@@ -30,32 +33,24 @@ PROJECT_DIR = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_DIR / "frontend"
 STATIC_DIR = FRONTEND_DIR / "static"
 FAVICON_PATH = BASE_DIR / "static" / "favicon.ico"
-
 INDEX_PATH = FRONTEND_DIR / "index.html"
+PROFILE_PATH = STATIC_DIR / "components" / "profile" / "profile.html"
+SEARCH_PATH = STATIC_DIR / "components" / "search" / "search.html"
+SCAN_PATH = STATIC_DIR / "components" / "scan" / "scan.html"
 
-PROFILE_PATH = (
-    STATIC_DIR / "components" / "profile" / "profile.html"
-)
-
-SEARCH_PATH = (
-    STATIC_DIR
-    / "components"
-    / "search"
-    / "search.html"
-)
-
-SCAN_PATH = (
-    STATIC_DIR
-    / "components"
-    / "scan"
-    / "scan.html"
-)
+DATA_DIR = PROJECT_DIR / "data"
 
 # Fichiers statiques : CSS, JavaScript, images, composants HTML, etc.
 app.mount(
     "/static",
     StaticFiles(directory=STATIC_DIR),
     name="static",
+)
+
+app.mount(
+    "/data",
+    StaticFiles(directory=DATA_DIR),
+    name="data",
 )
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -343,3 +338,94 @@ def profile_data(member_id: str):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.get("/api/filters")
+def get_filters():
+    try:
+        data = filters_sync.read_filters()
+    except (OSError, json.JSONDecodeError):
+        logging.exception("Impossible de lire vinted_filters.json")
+        raise HTTPException(
+            status_code=500,
+            detail="Le fichier des filtres est illisible.",
+        )
+
+    if data is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Aucun référentiel disponible. Lance une synchronisation.",
+        )
+
+    return data
+
+
+@app.post("/api/filters/sync")
+def sync_filters():
+    try:
+        return filters_sync.sync_filters()
+    except RuntimeError as exc:
+        logging.warning("Synchronisation des filtres interrompue : %s", exc)
+        return JSONResponse(
+            {"ok": False, "error": str(exc)},
+            status_code=409 if "déjà en cours" in str(exc) else 502,
+        )
+    except Exception:
+        logging.exception("Échec de la synchronisation des filtres Vinted")
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": (
+                    "La synchronisation a échoué. "
+                    "Le fichier JSON précédent a été conservé."
+                ),
+            },
+            status_code=502,
+        )
+
+@app.post("/api/categories/scan")
+def scan_categories():
+    script_path = PROJECT_DIR / "data" / "scan_categories.py"
+    log_path = PROJECT_DIR / "data" / "scan_categories.log"
+
+    if not script_path.is_file():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": f"Script introuvable : {script_path}",
+            },
+            status_code=404,
+        )
+
+    try:
+        log_file = open(log_path, "a", encoding="utf-8")
+
+        try:
+            subprocess.Popen(
+                [sys.executable, str(script_path)],
+                cwd=str(PROJECT_DIR),
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        finally:
+            log_file.close()
+
+        return {
+            "ok": True,
+            "message": (
+                "Le script de récupération des catégories a été lancé. "
+                "Consulte data/scan_categories.log pour suivre son exécution."
+            ),
+        }
+
+    except Exception as exc:
+        logging.exception("Impossible de lancer scan_categories.py")
+
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": str(exc),
+            },
+            status_code=500,
+        )

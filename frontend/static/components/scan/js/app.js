@@ -1,5 +1,5 @@
 import { $, api, notice } from "./api.js";
-import { currentQuery, loadConfigIntoForm } from "./search.js";
+import { currentQuery, loadConfigIntoForm, loadCategories } from "./search.js";
 import { loadItems, renderItems } from "./listings.js";
 
 let config = {};
@@ -15,6 +15,7 @@ function updateAutoButton(running) {
 async function loadConfig() {
     config = await api("/api/config");
     loadConfigIntoForm(config);
+    window.refreshCategoryPickerSelection?.();
     updateAutoButton(Boolean(config.auto_running));
 }
 
@@ -50,6 +51,7 @@ $("search-form").addEventListener("submit", async event => {
         });
 
         loadConfigIntoForm(config);
+        window.refreshCategoryPickerSelection?.();
         updateAutoButton(Boolean(config.auto_running));
 
         notice("Recherche enregistrée. Les prochains scans utiliseront ces paramètres.");
@@ -113,6 +115,7 @@ $("display-sort").addEventListener("change", renderItems);
 
 async function init() {
     try {
+        await loadCategories();
         await loadConfig();
         await loadItems();
 
@@ -196,6 +199,7 @@ async function refreshSavedSearches() {
 
                 config = result.config;
                 loadConfigIntoForm(config);
+                window.refreshCategoryPickerSelection?.();
                 updateAutoButton(Boolean(result.auto_running));
 
                 $("saved-searches-menu").hidden = true;
