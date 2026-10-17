@@ -115,7 +115,6 @@ $("display-sort").addEventListener("change", renderItems);
 
 async function init() {
     try {
-        await loadCategories();
         await loadConfig();
         await loadItems();
 
