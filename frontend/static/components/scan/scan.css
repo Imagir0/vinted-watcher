@@ -591,13 +591,6 @@ Liste déroulante catégories
     margin-bottom: 4px;
 }
 
-.categories-total {
-    margin-top: 8px;
-    color: #52635c;
-    font-size: 14px;
-    font-weight: 600;
-}
-
 @media (max-width: 560px) {
     .saved-search-row {
         align-items: flex-start;

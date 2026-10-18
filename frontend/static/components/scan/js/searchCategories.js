@@ -66,7 +66,10 @@ export function loadConfigIntoForm(cfg) {
 
 
 export async function loadCategories() {
-    const response = await fetch("/data/categories.json");
+    const response = await fetch(
+        `/data/categories/categories.json?t=${Date.now()}`,
+        { cache: "no-store" }
+    );
 
     if (!response.ok) {
         throw new Error("Impossible de charger les catégories.");

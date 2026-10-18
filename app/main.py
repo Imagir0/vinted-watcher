@@ -2,6 +2,7 @@ import logging
 import json
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -34,9 +35,10 @@ FRONTEND_DIR = PROJECT_DIR / "frontend"
 STATIC_DIR = FRONTEND_DIR / "static"
 FAVICON_PATH = BASE_DIR / "static" / "favicon.ico"
 INDEX_PATH = FRONTEND_DIR / "index.html"
-PROFILE_PATH = STATIC_DIR / "components" / "profile" / "profile.html"
 SEARCH_PATH = STATIC_DIR / "components" / "search" / "search.html"
 SCAN_PATH = STATIC_DIR / "components" / "scan" / "scan.html"
+PARAMETERS_PATH = STATIC_DIR / "components" / "parameters" / "parameters.html"
+PROFILE_PATH = STATIC_DIR / "components" / "profile" / "profile.html"
 
 DATA_DIR = PROJECT_DIR / "data"
 
@@ -134,7 +136,7 @@ def index():
 
 
 @app.get("/search", response_class=FileResponse)
-def global_search_page():
+def search_page():
     if not SEARCH_PATH.is_file():
         raise HTTPException(
             status_code=500,
@@ -159,6 +161,20 @@ def scan_page():
         )
 
     return FileResponse(SCAN_PATH, media_type="text/html")
+
+
+@app.get("/parameters", response_class=FileResponse)
+def parameters_page():
+    if not PARAMETERS_PATH.is_file():
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Fichier parameters.html introuvable : "
+                f"{PARAMETERS_PATH}"
+            ),
+        )
+
+    return FileResponse(PARAMETERS_PATH, media_type="text/html")
 
 
 @app.get("/profile", response_class=FileResponse)
@@ -383,10 +399,18 @@ def sync_filters():
             status_code=502,
         )
 
+
+# État du scan des catégories
+category_scan_process = None
+category_scan_lock = threading.Lock()
+
+
 @app.post("/api/categories/scan")
 def scan_categories():
-    script_path = PROJECT_DIR / "data" / "scan_categories.py"
-    log_path = PROJECT_DIR / "data" / "scan_categories.log"
+    global category_scan_process
+
+    script_path = PROJECT_DIR / "data" / "categories" / "scan_categories.py"
+    log_path = PROJECT_DIR / "data" / "categories" / "scan_categories.log"
 
     if not script_path.is_file():
         return JSONResponse(
@@ -397,35 +421,121 @@ def scan_categories():
             status_code=404,
         )
 
-    try:
-        log_file = open(log_path, "a", encoding="utf-8")
+    with category_scan_lock:
+        # Ne pas lancer un second scan si le premier tourne encore.
+        if (
+            category_scan_process is not None
+            and category_scan_process.poll() is None
+        ):
+            return {
+                "ok": True,
+                "status": "running",
+                "message": "Récupération des catégories en cours… Temps estimé ≈ 30 minutes "
+                "Vous pouvez changer de page : le scan continue en arrière-plan.",
+            }
 
         try:
-            subprocess.Popen(
-                [sys.executable, str(script_path)],
-                cwd=str(PROJECT_DIR),
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
-        finally:
-            log_file.close()
+            with open(log_path, "a", encoding="utf-8") as log_file:
 
+                progress_path = PROJECT_DIR / "data" / "categories" / "categories_progress.json"
+
+                with progress_path.open("w", encoding="utf-8") as file:
+                    json.dump(
+                        {
+                            "status": "running",
+                            "scanned_ids": 0,
+                            "total_ids": 0,
+                            "progress_percent": 0,
+                            "categories_found": 0,
+                            "progress_label": "Préparation du scan…",
+                            "message": "Démarrage du scan des catégories…",
+                        },
+                        file,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+
+                category_scan_process = subprocess.Popen(
+                    [sys.executable, str(script_path)],
+                    cwd=str(PROJECT_DIR),
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+
+            return {
+                "ok": True,
+                "status": "running",
+                "message": "Récupération des catégories lancée.",
+            }
+
+        except Exception as exc:
+            logging.exception(
+                "Impossible de lancer scan_categories.py"
+            )
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": str(exc),
+                },
+                status_code=500,
+            )
+
+
+@app.get("/api/categories/scan/status")
+def category_scan_status():
+    progress_path = (
+        PROJECT_DIR
+        / "data"
+        / "categories"
+        / "categories_progress.json"
+    )
+
+    if not progress_path.is_file():
         return {
-            "ok": True,
-            "message": (
-                "Le script de récupération des catégories a été lancé. "
-                "Consulte data/scan_categories.log pour suivre son exécution."
-            ),
+            "status": "idle",
+            "message": "Aucun scan n'a encore été lancé.",
         }
 
-    except Exception as exc:
-        logging.exception("Impossible de lancer scan_categories.py")
+    try:
+        with progress_path.open("r", encoding="utf-8") as file:
+            progress = json.load(file)
 
+        return progress
+
+    except (OSError, json.JSONDecodeError):
+        logging.exception(
+            "Impossible de lire le fichier de progression."
+        )
         return JSONResponse(
             {
-                "ok": False,
-                "error": str(exc),
+                "status": "error",
+                "message": "Impossible de lire la progression du scan.",
+            },
+            status_code=500,
+        )
+
+@app.get("/api/categories/scan/status")
+def category_scan_status():
+    progress_path = PROJECT_DIR / "data" / "categories" / "categories_progress.json"
+
+    if not progress_path.is_file():
+        return {
+            "status": "idle",
+            "message": "Aucun scan n'a encore été lancé.",
+        }
+
+    try:
+        with progress_path.open("r", encoding="utf-8") as file:
+            progress = json.load(file)
+
+        return progress
+
+    except (OSError, json.JSONDecodeError):
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "Impossible de lire la progression du scan.",
             },
             status_code=500,
         )

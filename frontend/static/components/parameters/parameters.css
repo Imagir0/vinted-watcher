@@ -1,0 +1,300 @@
+.parameters-page {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding: 28px;
+    color: #25352e;
+    box-sizing: border-box;
+}
+
+.parameters-header h1 {
+    margin: 0;
+    font-size: 27px;
+    font-weight: 700;
+}
+
+.parameters-header p,
+.parameters-section-header p {
+    margin: 7px 0 0;
+    color: #77847d;
+    font-size: 14px;
+}
+
+.parameters-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.parameters-section-header h2 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 650;
+}
+
+.parameters-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+}
+
+.parameter-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    padding: 18px 22px;
+    box-sizing: border-box;
+    background: #fff;
+    border: 1px solid #e5ebe7;
+    border-radius: 15px;
+    box-shadow: 0 3px 12px rgb(25 50 35 / 4%);
+}
+
+.parameter-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.parameter-icon {
+    display: flex;
+    flex: 0 0 42px;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #edf5ef;
+    color: #397653;
+    font-size: 22px;
+}
+
+.parameter-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.parameter-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+}
+
+.parameter-title p {
+    margin: 4px 0 0;
+    color: #7b8780;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.parameter-card-heading .parameter-stats {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    color: #64736a;
+    font-size: 12px;
+    text-align: right;
+}
+
+.parameter-stats strong {
+    color: #263c30;
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.parameter-card-progress {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+}
+
+.parameter-progress {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.parameter-progress-track {
+    overflow: hidden;
+    height: 8px;
+    border-radius: 99px;
+    background: #e8eee9;
+}
+
+.parameter-progress-bar {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: #007782;
+    transition: width 0.3s ease;
+}
+
+.parameter-progress-info {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #6c7971;
+    font-size: 12px;
+}
+
+.parameter-card-progress .parameter-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 170px;
+    white-space: nowrap;
+}
+
+.parameter-status {
+    margin: 0;
+    color: #6c7971;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.parameter-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    margin-top: 0;
+    padding-top: 8px;
+    border-top: 1px solid #edf0ee;
+}
+
+.parameter-card-footer > span {
+    color: #89938d;
+    font-size: 12px;
+}
+
+.parameter-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 9px;
+    background: #007782;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.parameter-button:hover:not(:disabled) {
+    background: #006570;
+}
+
+.parameter-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.parameter-live-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.parameter-live-details > div {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px;
+    background: #f6f8f6;
+    border-radius: 9px;
+}
+
+.parameter-live-details span {
+    color: #77847d;
+    font-size: 12px;
+}
+
+.parameter-live-details strong {
+    color: #263c30;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 850px) {
+    .parameters-page {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 600px) {
+    .parameters-page {
+        padding: 14px;
+    }
+
+    .parameter-card {
+        gap: 11px;
+        padding: 15px;
+    }
+
+    .parameter-card-heading {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .parameter-title {
+        flex: 1 1 calc(100% - 60px);
+    }
+
+    .parameter-card-heading .parameter-stats {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        margin-left: 0;
+        text-align: left;
+    }
+
+    .parameter-stats strong {
+        font-size: 20px;
+    }
+
+    .parameter-card-progress {
+        align-items: center;
+        gap: 10px;
+    }
+
+    .parameter-card-progress .parameter-button {
+        min-width: 0;
+        max-width: 45%;
+        padding: 10px;
+        white-space: normal;
+    }
+
+    .parameter-progress-info {
+        flex-wrap: wrap;
+        gap: 4px 10px;
+    }
+}
+
+@media (max-width: 380px) {
+    .parameter-card-progress {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .parameter-card-progress .parameter-button {
+        width: 100%;
+        max-width: none;
+    }
+}

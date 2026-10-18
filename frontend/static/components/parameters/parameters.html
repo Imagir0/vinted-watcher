@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Paramètres — Vinted Watcher</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/components/main-nav/main-nav.css">
+    <link rel="stylesheet" href="/static/components/parameters/parameters.css">
+    <script type="module" src="/static/components/main-nav/main-nav.js"></script>
+    <link rel="icon" href="/static/assets/favicon.ico" sizes="any">
+</head>
+<body>
+    <div id="site-nav-container"></div>
+    <main>
+        <section class="parameters-page">
+
+            <section class="parameters-section">
+                <div class="parameters-section-header">
+                    <div>
+                        <h2>Référentiels Vinted</h2>
+                        <p>
+                            Actualise les données utilisées par les recherches.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="parameters-grid">
+
+                    <!-- Catégories -->
+                    <article class="parameter-card" id="categories-card">
+                        <div class="parameter-card-heading">
+                            <div class="parameter-icon">⌘</div>
+                            <div class="parameter-title">
+                                <h3>Catégories</h3>
+                                <p>Arborescence des catégories Vinted.</p>
+                            </div>
+                            <div class="parameter-stats">
+                                <span>Nombre de catégories + sous catégories</span>
+                                <strong id="categories-total">—</strong>
+                            </div>
+                        </div>
+
+                        <div class="parameter-card-progress">
+                            <div class="parameter-progress" id="categories-progress-container" hidden>
+                                <div class="parameter-progress-track">
+                                    <div
+                                        class="parameter-progress-bar"
+                                        id="categories-progress-bar"
+                                        style="width: 0%"
+                                    ></div>
+                                </div>
+                                <div class="parameter-progress-info">
+                                    <span id="categories-progress-label">Préparation…</span>
+                                    <span id="categories-progress-percent">0 %</span>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="parameter-button"
+                                id="sync-categories-btn"
+                            >
+                                Récupérer les catégories
+                            </button>
+                        </div>
+
+                        <p
+                            class="parameter-status"
+                            id="categories-status"
+                            role="status"
+                            aria-live="polite"
+                        >Chargement des informations…</p>
+
+                        <div class="parameter-card-footer">
+                            <span id="categories-last-update">
+                                Dernière mise à jour : inconnue
+                            </span>
+                        </div>
+                    </article>
+
+                    <!-- Marques -->
+                    <article class="parameter-card" id="brands-card">
+                        <div class="parameter-card-heading">
+                            <div class="parameter-icon">🏷</div>
+                            <div class="parameter-title">
+                                <h3>Marques</h3>
+                                <p>Référentiel des marques disponibles.</p>
+                            </div>
+                            <div class="parameter-stats">
+                                <span>Nombre de marques</span>
+                                <strong id="brands-total">—</strong>
+                            </div>
+                        </div>
+
+                        <div class="parameter-card-progress">
+                            <div class="parameter-progress" id="brands-progress-container" hidden>
+                                <div class="parameter-progress-track">
+                                    <div class="parameter-progress-bar" id="brands-progress-bar"
+                                        style="width: 0%"></div>
+                                </div>
+                                <div class="parameter-progress-info">
+                                    <span id="brands-progress-label">En attente</span>
+                                    <span id="brands-progress-percent">0 %</span>
+                                </div>
+                            </div>
+
+                            <button type="button" class="parameter-button" disabled>
+                                Bientôt disponible
+                            </button>
+                        </div>
+
+                        <p class="parameter-status" id="brands-status">
+                            Synchronisation à configurer.
+                        </p>
+
+                        <div class="parameter-card-footer">
+                            <span id="brands-last-update">Dernière mise à jour : inconnue</span>
+                        </div>
+                    </article>
+
+                    <!-- États des articles -->
+                    <article class="parameter-card" id="conditions-card">
+                        <div class="parameter-card-heading">
+                            <div class="parameter-icon">✓</div>
+                            <div class="parameter-title">
+                                <h3>États des articles</h3>
+                                <p>États et niveaux de condition des articles.</p>
+                            </div>
+                            <div class="parameter-stats">
+                                <span>Nombre d'états</span>
+                                <strong id="conditions-total">—</strong>
+                            </div>
+                        </div>
+
+                        <div class="parameter-card-progress">
+                            <div class="parameter-progress" id="conditions-progress-container" hidden>
+                                <div class="parameter-progress-track">
+                                    <div class="parameter-progress-bar" id="conditions-progress-bar"
+                                        style="width: 0%"></div>
+                                </div>
+                                <div class="parameter-progress-info">
+                                    <span id="conditions-progress-label">En attente</span>
+                                    <span id="conditions-progress-percent">0 %</span>
+                                </div>
+                            </div>
+
+                            <button type="button" class="parameter-button" disabled>
+                                Bientôt disponible
+                            </button>
+                        </div>
+
+                        <p class="parameter-status" id="conditions-status">
+                            Synchronisation à configurer.
+                        </p>
+
+                        <div class="parameter-card-footer">
+                            <span id="conditions-last-update">Dernière mise à jour : inconnue</span>
+                        </div>
+                    </article>
+
+                    <!-- Tailles des articles -->
+                    <article class="parameter-card" id="sizes-card">
+                        <div class="parameter-card-heading">
+                            <div class="parameter-icon">↔</div>
+                            <div class="parameter-title">
+                                <h3>Tailles des articles</h3>
+                                <p>Tailles disponibles selon les catégories et les types d'articles.</p>
+                            </div>
+                            <div class="parameter-stats">
+                                <span>Nombre de tailles</span>
+                                <strong id="sizes-total">—</strong>
+                            </div>
+                        </div>
+
+                        <div class="parameter-card-progress">
+                            <div class="parameter-progress" id="sizes-progress-container" hidden>
+                                <div class="parameter-progress-track">
+                                    <div class="parameter-progress-bar" id="sizes-progress-bar"
+                                        style="width: 0%"></div>
+                                </div>
+                                <div class="parameter-progress-info">
+                                    <span id="sizes-progress-label">En attente</span>
+                                    <span id="sizes-progress-percent">0 %</span>
+                                </div>
+                            </div>
+
+                            <button type="button" class="parameter-button" disabled>
+                                Bientôt disponible
+                            </button>
+                        </div>
+
+                        <p class="parameter-status" id="sizes-status">
+                            Synchronisation à configurer.
+                        </p>
+
+                        <div class="parameter-card-footer">
+                            <span id="sizes-last-update">Dernière mise à jour : inconnue</span>
+                        </div>
+                    </article>
+
+                </div>
+
+            </section>
+        </section>
+
+    </main>
+    <script src="/static/components/parameters/js/parameters.js" defer></script>
+</body>
+</html>

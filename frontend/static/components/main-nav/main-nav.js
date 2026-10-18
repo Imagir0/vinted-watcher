@@ -34,6 +34,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 isCurrent = currentPath === "/search";
             } else if (nav === "scan") {
                 isCurrent = currentPath === "/scan";
+            } else if (nav === "items") {
+                isCurrent = currentPath === "/items";
+            } else if (nav === "sellers") {
+                isCurrent = currentPath === "/sellers";
+            } else if (nav === "parameters") {
+                isCurrent = currentPath === "/parameters";
             } else if (nav === "profile") {
                 isCurrent = currentPath === "/profile";
             } else if (link.classList.contains("nav-home")) {
