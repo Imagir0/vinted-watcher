@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!syncButton) return;
 
     let statusPolling = null;
+    let scanIsRunning = false;
 
     async function loadCategoryStats() {
         try {
@@ -24,7 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const stats = await response.json();
 
-            if (Number.isFinite(Number(stats.total_categories))) {
+            if (
+                !scanIsRunning &&
+                Number.isFinite(Number(stats.total_categories))
+            ) {
                 totalElement.textContent =
                     Number(stats.total_categories).toLocaleString("fr-FR");
             }
@@ -46,6 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const running = data.status === "running";
         const done = data.status === "done";
         const failed = data.status === "error";
+        scanIsRunning = running;
 
         syncButton.disabled = running;
         syncButton.textContent = running
@@ -55,6 +60,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (running) {
             statusElement.textContent =
                 data.message || "Récupération des catégories en cours…";
+            
+            if (
+                totalElement &&
+                Number.isFinite(Number(data.categories_found))
+            ) {
+                totalElement.textContent =
+                    Number(data.categories_found).toLocaleString("fr-FR");
+            }
 
             progressContainer.hidden = false;
 
@@ -149,6 +162,24 @@ document.addEventListener("DOMContentLoaded", () => {
         syncButton.disabled = true;
         syncButton.textContent = "Lancement…";
         statusElement.textContent = "Lancement du scan des catégories…";
+
+        // Réinitialiser les compteurs visuels au lancement
+        if (totalElement) {
+            totalElement.textContent = "0";
+        }
+
+        if (scannedElement) {
+            scannedElement.textContent = "0 / —";
+        }
+
+        if (foundElement) {
+            foundElement.textContent = "0";
+        }
+
+        progressBar.style.width = "0%";
+        progressPercent.textContent = "0 %";
+        progressLabel.textContent = "Préparation du scan…";
+        progressContainer.hidden = false;
 
         try {
             const response = await fetch("/api/categories/scan", {

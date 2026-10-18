@@ -1,5 +1,5 @@
 import { $, api, notice } from "./api.js";
-import { currentQuery, loadConfigIntoForm, loadCategories } from "./search.js";
+import { currentQuery, loadConfigIntoForm, loadCategories } from "./searchCategories.js";
 import { loadItems, renderItems } from "./listings.js";
 
 let config = {};
@@ -117,6 +117,7 @@ async function init() {
     try {
         await loadConfig();
         await loadItems();
+        await loadCategories();
 
         notice("Prêt. Les articles affichés sont ceux déjà enregistrés par le scanner.");
 

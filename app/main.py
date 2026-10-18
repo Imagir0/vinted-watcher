@@ -444,7 +444,7 @@ def scan_categories():
                         {
                             "status": "running",
                             "scanned_ids": 0,
-                            "total_ids": None,
+                            "total_ids": 0,
                             "progress_percent": 0,
                             "categories_found": 0,
                             "progress_label": "Préparation du scan…",
