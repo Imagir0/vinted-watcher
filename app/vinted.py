@@ -32,6 +32,35 @@ def normalize(text):
         if not unicodedata.combining(char)
     ).lower()
 
+def extract_size(raw: dict) -> str:
+    """
+    Extrait une taille lisible depuis une annonce Vinted.
+    """
+    size = raw.get("size")
+
+    # La taille est déjà une chaîne.
+    if isinstance(size, str):
+        return size.strip()
+
+    # La taille est un objet contenant un libellé.
+    if isinstance(size, dict):
+        for key in ("title", "label", "name", "value"):
+            value = size.get(key)
+            if value is not None:
+                return str(value).strip()
+
+    # Certains libellés incluent la taille dans accessibility_label.
+    item_box = raw.get("item_box") or {}
+    label = item_box.get("accessibility_label") or ""
+
+    match = re.search(
+        r"(?:Taille|Size|Größe|Talla)\s*:\s*([^,]+)",
+        label,
+        flags=re.IGNORECASE,
+    )
+
+    return match.group(1).strip() if match else ""
+
 
 class VintedClient:
     def __init__(self):
@@ -44,10 +73,6 @@ class VintedClient:
                 timeout=TIMEOUT,
             )
             response.raise_for_status()
-            logger.info(
-                "Session Vinted initialisée ; cookies : %s",
-                list(self.session.cookies.keys()),
-            )
         except requests.exceptions.RequestException as exc:
             logger.warning("Initialisation de la session Vinted échouée : %s", exc)
 
@@ -56,17 +81,33 @@ class VintedClient:
         max_pages = max(1, min(int(max_pages), MAX_PAGES))
 
         for page in range(1, max_pages + 1):
+            request_params = []
+
+            for key, value in params.items():
+                if key == "size_ids":
+                    if isinstance(value, (list, tuple)):
+                        size_ids = value
+                    else:
+                        size_ids = str(value).split(",")
+
+                    for size_id in size_ids:
+                        size_id = str(size_id).strip()
+                        if size_id:
+                            request_params.append(("size_ids[]", size_id))
+                elif value is not None:
+                    request_params.append((key, value))
+
+            request_params.append(("page", page))
+
             response = self.session.get(
                 f"{VINTED_API_URL}/svc-catalogue/items",
-                params={**params, "page": page},
+                params=request_params,
                 headers=BROWSER_HEADERS,
                 timeout=TIMEOUT,
             )
 
-            logger.info("GET %s", response.url)
-            logger.info("Statut HTTP : %s", response.status_code)
-            logger.info("Début de la réponse : %s", response.text[:500])
-            response.raise_for_status()
+            logger.info("URL finale envoyée à Vinted : %s", response.url)
+
             response.raise_for_status()
 
             data = response.json() or {}
@@ -105,7 +146,7 @@ def parse_item(raw: dict) -> dict:
         "favourite_count": raw.get("favourite_count") or 0,
         "image": photo.get("full_size_url") or photo.get("url"),
         "brand": (raw.get("brand_title") or "").strip(),
-        "size": raw.get("size") or "",
+        "size": extract_size(raw),
         "description": (
             (raw.get("item_box") or {}).get("accessibility_label") or ""
         ),

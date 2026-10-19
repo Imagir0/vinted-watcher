@@ -1,10 +1,15 @@
 export const $ = id => document.getElementById(id);
 
 export function notice(message, isError = false) {
-    const el = $("notice");
+    const el = $("scan-notice");
+
+    if (!el) {
+        console[isError ? "error" : "log"](message);
+        return;
+    }
+
     el.textContent = message;
-    el.style.background = isError ? "#fff0ef" : "#eef7f7";
-    el.style.color = isError ? "#8b1e16" : "#222";
+    el.classList.toggle("notice-error", isError);
 }
 
 export function money(value) {
