@@ -1,5 +1,7 @@
 import { $, api, notice } from "./api.js";
-import { currentQuery, loadConfigIntoForm, loadCategories } from "./searchCategories.js";
+import { loadCategories } from "./searchCategories.js";
+import { loadSizes } from "./searchSizes.js";
+import { currentQuery, loadConfigIntoForm } from "./searchForm.js";
 import { loadItems, renderItems } from "./listings.js";
 
 let config = {};
@@ -14,10 +16,15 @@ function updateAutoButton(running) {
 
 async function loadConfig() {
     config = await api("/api/config");
+
     loadConfigIntoForm(config);
+
     window.refreshCategoryPickerSelection?.();
+    window.refreshSizePickerSelection?.();
+
     updateAutoButton(Boolean(config.auto_running));
 }
+
 
 $("search-form").addEventListener("submit", async event => {
     event.preventDefault();
@@ -51,7 +58,10 @@ $("search-form").addEventListener("submit", async event => {
         });
 
         loadConfigIntoForm(config);
+
         window.refreshCategoryPickerSelection?.();
+        window.refreshSizePickerSelection?.();
+
         updateAutoButton(Boolean(config.auto_running));
 
         notice("Recherche enregistrée. Les prochains scans utiliseront ces paramètres.");
@@ -114,12 +124,21 @@ $("display-sort").addEventListener("change", renderItems);
 });
 
 async function init() {
+    
+    await checkScanDataStatus();
+
     try {
+        await loadCategories();
+        await loadSizes();
         await loadConfig();
         await loadItems();
-        await loadCategories();
 
-        notice("Prêt. Les articles affichés sont ceux déjà enregistrés par le scanner.");
+        window.refreshCategoryPickerSelection?.();
+        window.refreshSizePickerSelection?.();
+
+        notice(
+            "Prêt. Les articles affichés sont ceux déjà enregistrés par le scanner."
+        );
 
         setInterval(async () => {
             try {
@@ -199,7 +218,10 @@ async function refreshSavedSearches() {
 
                 config = result.config;
                 loadConfigIntoForm(config);
+
                 window.refreshCategoryPickerSelection?.();
+                window.refreshSizePickerSelection?.();
+
                 updateAutoButton(Boolean(result.auto_running));
 
                 $("saved-searches-menu").hidden = true;
@@ -278,6 +300,45 @@ async function saveCurrentSearch() {
         notice(`Recherche enregistrée : ${result.item.name}.`);
     } catch (error) {
         notice(`Enregistrement impossible : ${error.message}`, true);
+    }
+}
+
+async function checkScanDataStatus() {
+    const categoriesWarning = document.getElementById("categories-warning");
+    const sizesWarning = document.getElementById("sizes-warning");
+
+    try {
+        const response = await fetch(
+            `/api/scan/data-status?t=${Date.now()}`,
+            { cache: "no-store" }
+        );
+
+        if (!response.ok) {
+            throw new Error("Impossible de vérifier les données.");
+        }
+
+        const data = await response.json();
+
+        if (categoriesWarning) {
+            categoriesWarning.hidden = data.categories_available;
+        }
+
+        if (sizesWarning) {
+            sizesWarning.hidden = data.sizes_available;
+        }
+    } catch (error) {
+        console.error("Erreur de vérification des données :", error);
+
+        // En cas d'erreur, signaler que l'état des données est inconnu.
+        if (categoriesWarning) {
+            categoriesWarning.hidden = false;
+            categoriesWarning.textContent = "Vérification impossible";
+        }
+
+        if (sizesWarning) {
+            sizesWarning.hidden = false;
+            sizesWarning.textContent = "Vérification impossible";
+        }
     }
 }
 

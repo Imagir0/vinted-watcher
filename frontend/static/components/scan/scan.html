@@ -56,7 +56,13 @@
                     </div>
 
                     <div class="field">
-                        <label for="category-picker-trigger">Catégorie</label>
+                        <div class="field-label-row">
+                            <label for="category-picker-trigger">Catégorie</label>
+                            <span id="categories-warning" class="data-warning" hidden>
+                                Données absentes —
+                                <a href="/parameters">les récupérer</a>
+                            </span>
+                        </div>
 
                         <input type="hidden" id="catalog_id" value="">
 
@@ -122,11 +128,81 @@
                         <label for="price_to">Prix maximum (€)</label>
                         <input id="price_to" type="number" min="0" step="0.01">
                     </div>
-
                     <div class="field">
-                        <label for="size_ids">Identifiants de taille</label>
-                        <input id="size_ids" placeholder="Ex. 123,456">
+                        <div class="field-label-row">
+                            <label for="size-picker-trigger">Tailles</label>
+                            <span id="sizes-warning" class="data-warning" hidden>
+                                Données absentes —
+                                <a href="/parameters">les récupérer</a>
+                            </span>
+                        </div>
+
+                        <div class="size-picker" id="size-picker">
+                            <button
+                                type="button"
+                                id="size-picker-trigger"
+                                class="size-picker-trigger"
+                                aria-expanded="false"
+                                aria-controls="size-picker-panel"
+                            >
+                                <span id="size-picker-selection">
+                                    Toutes les tailles
+                                </span>
+                                <span aria-hidden="true">⌄</span>
+                            </button>
+
+                            <div
+                                id="size-picker-panel"
+                                class="size-picker-panel"
+                                hidden
+                            >
+                                <div class="size-picker-header">
+                                    <button
+                                        type="button"
+                                        id="size-picker-back"
+                                        class="size-picker-back"
+                                        hidden
+                                        aria-label="Retour aux catégories précédentes"
+                                    >
+                                        ←
+                                    </button>
+
+                                    <strong id="size-picker-title">
+                                        Toutes les tailles
+                                    </strong>
+
+                                    <button
+                                        type="button"
+                                        id="size-picker-close"
+                                        class="size-picker-close"
+                                        aria-label="Fermer"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+
+                                <div
+                                    id="size-picker-list"
+                                    class="size-picker-list"
+                                    role="list"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <!-- Valeurs sélectionnées, utilisables dans ton formulaire -->
+                        <input
+                            type="hidden"
+                            id="selected_sizes"
+                            name="sizes"
+                            value="[]"
+                        >
                     </div>
+                    <!-- Tailles sélectionnées -->
+                    <div
+                        id="selected-sizes-list"
+                        class="selected-sizes-list"
+                        aria-live="polite"
+                    ></div>
 
                     <div class="field">
                         <label for="status_ids">Identifiants d'état</label>
@@ -159,7 +235,7 @@
                         type="button"
                         id="scan-btn"
                     >
-                        Lancer un scan
+                        Tester la recherche
                     </button>
 
                     <button
@@ -321,6 +397,7 @@
             </div>
 
         </div>
+        <div id="scan-notice" role="status" aria-live="polite"></div>
 
         <p id="result-count" class="muted">Chargement des annonces…</p>
 
@@ -329,7 +406,7 @@
     </section>
 
 </main>
-<script type="module" src="/static/components/scan/js/app.js"></script>
+<script type="module" src="/static/components/scan/js/scan.js"></script>
 <script type="module" src="/static/components/scan/js/filters-sync.js"></script>
 </body>
 </html>

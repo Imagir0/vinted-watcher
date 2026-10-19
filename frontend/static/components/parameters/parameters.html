@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/components/main-nav/main-nav.css">
     <link rel="stylesheet" href="/static/components/parameters/parameters.css">
     <script type="module" src="/static/components/main-nav/main-nav.js"></script>
-    <link rel="icon" href="/static/assets/favicon.ico" sizes="any">
+    <link rel="icon" href="/assets/imgs/favicon.ico" sizes="any">
 </head>
 <body>
     <div id="site-nav-container"></div>
@@ -174,28 +174,47 @@
                         </div>
 
                         <div class="parameter-card-progress">
-                            <div class="parameter-progress" id="sizes-progress-container" hidden>
+                            <div
+                                class="parameter-progress"
+                                id="sizes-progress-container"
+                                hidden
+                            >
                                 <div class="parameter-progress-track">
-                                    <div class="parameter-progress-bar" id="sizes-progress-bar"
-                                        style="width: 0%"></div>
+                                    <div
+                                        class="parameter-progress-bar"
+                                        id="sizes-progress-bar"
+                                        style="width: 0%"
+                                    ></div>
                                 </div>
+
                                 <div class="parameter-progress-info">
-                                    <span id="sizes-progress-label">En attente</span>
+                                    <span id="sizes-progress-label">Préparation…</span>
                                     <span id="sizes-progress-percent">0 %</span>
                                 </div>
                             </div>
 
-                            <button type="button" class="parameter-button" disabled>
-                                Bientôt disponible
+                            <button
+                                type="button"
+                                class="parameter-button"
+                                id="sync-sizes-btn"
+                            >
+                                Récupérer les tailles
                             </button>
                         </div>
 
-                        <p class="parameter-status" id="sizes-status">
-                            Synchronisation à configurer.
+                        <p
+                            class="parameter-status"
+                            id="sizes-status"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            Chargement des informations…
                         </p>
 
                         <div class="parameter-card-footer">
-                            <span id="sizes-last-update">Dernière mise à jour : inconnue</span>
+                            <span id="sizes-last-update">
+                                Dernière mise à jour : inconnue
+                            </span>
                         </div>
                     </article>
 

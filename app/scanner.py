@@ -1,9 +1,9 @@
-"""Moteur de scan et boucle automatique en arrière-plan."""
 import logging
 import threading
 
-from . import database as db
+from .filters import filter_items
 from .vinted import VintedClient, normalize, parse_item
+from . import database as db
 
 logger = logging.getLogger("scanner")
 
@@ -11,11 +11,13 @@ logger = logging.getLogger("scanner")
 def run_scan() -> int:
     """Scanne les recherches actives et retourne le nombre de nouvelles annonces."""
     cfg = db.get_config()
+
     excluded = [
         normalize(keyword)
         for keyword in cfg.get("excluded_keywords", [])
         if keyword
     ]
+
     max_pages = max(1, min(10, int(cfg.get("pages") or 2)))
     client = VintedClient()
     new_count = 0
@@ -24,16 +26,21 @@ def run_scan() -> int:
         key = db.search_key(params)
 
         try:
+            # 1. Récupérer les annonces depuis Vinted
             raw_items = client.fetch_items(dict(params), max_pages)
+
+            # 2. Appliquer les filtres persistants
+            raw_items = filter_items(raw_items, params)
+
+            logger.info(
+                "Requête %r -> %s annonces après filtrage",
+                params.get("search_text") or "(vide)",
+                len(raw_items),
+            )
+
         except Exception:
             logger.exception("Erreur pour la requête %s", params)
             continue
-
-        logger.info(
-            "Requête %r -> %s items",
-            params.get("search_text") or "(vide)",
-            len(raw_items),
-        )
 
         for raw in raw_items:
             try:
@@ -49,9 +56,6 @@ def run_scan() -> int:
                     continue
 
                 was_seen = db.is_seen(item_id)
-
-                # Enregistre ou actualise l'annonce, son association à la
-                # recherche active et son prix observé.
                 db.record_observation(item, key)
 
                 if not was_seen:
@@ -63,6 +67,7 @@ def run_scan() -> int:
 
     logger.info("Scan terminé : %s nouvelles annonces", new_count)
     return new_count
+
 
 
 class AutoLoop(threading.Thread):
