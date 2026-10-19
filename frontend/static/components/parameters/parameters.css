@@ -231,6 +231,53 @@
     font-variant-numeric: tabular-nums;
 }
 
+.field-label-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.data-warning {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.data-warning[hidden] {
+    display: none !important;
+}
+
+
+.data-warning {
+    margin-left: 8px;
+    color: #b91c1c;
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.data-warning a {
+    color: #b91c1c;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.data-warning a:hover {
+    color: #7f1d1d;
+}
+
+.data-warning[hidden] {
+    display: none !important;
+}
+
+
+
 @media (max-width: 850px) {
     .parameters-page {
         padding: 20px;

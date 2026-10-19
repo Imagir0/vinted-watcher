@@ -41,11 +41,11 @@ export function currentQuery() {
     }
 
     if (priceFrom !== "") {
-        query.price_from = priceFrom;
+        query.price_from = Math.max(0, Number(priceFrom) - 0.01).toFixed(2);
     }
 
     if (priceTo !== "") {
-        query.price_to = priceTo;
+        query.price_to = (Number(priceTo) + 0.01).toFixed(2);
     }
 
     if (sizes.length > 0) {

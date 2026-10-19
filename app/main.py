@@ -481,40 +481,6 @@ def scan_categories():
                 status_code=500,
             )
 
-
-@app.get("/api/categories/scan/status")
-def category_scan_status():
-    progress_path = (
-        PROJECT_DIR
-        / "data"
-        / "categories"
-        / "categories_progress.json"
-    )
-
-    if not progress_path.is_file():
-        return {
-            "status": "idle",
-            "message": "Aucun scan n'a encore été lancé.",
-        }
-
-    try:
-        with progress_path.open("r", encoding="utf-8") as file:
-            progress = json.load(file)
-
-        return progress
-
-    except (OSError, json.JSONDecodeError):
-        logging.exception(
-            "Impossible de lire le fichier de progression."
-        )
-        return JSONResponse(
-            {
-                "status": "error",
-                "message": "Impossible de lire la progression du scan.",
-            },
-            status_code=500,
-        )
-
 @app.get("/api/categories/scan/status")
 def category_scan_status():
     progress_path = PROJECT_DIR / "data" / "categories" / "categories_progress.json"
@@ -539,3 +505,118 @@ def category_scan_status():
             },
             status_code=500,
         )
+
+# État du scan des tailles
+size_scan_process = None
+size_scan_lock = threading.Lock()
+
+@app.post("/api/sizes/scan")
+def scan_sizes():
+    global size_scan_process
+
+    script_path = PROJECT_DIR / "data" / "sizes" / "scan_sizes.py"
+    log_path = PROJECT_DIR / "data" / "sizes" / "scan_sizes.log"
+    progress_path = PROJECT_DIR / "data" / "sizes" / "sizes_progress.json"
+
+    if not script_path.is_file():
+        return JSONResponse(
+            {"ok": False, "error": f"Script introuvable : {script_path}"},
+            status_code=404,
+        )
+
+    with size_scan_lock:
+        if size_scan_process is not None and size_scan_process.poll() is None:
+            return {
+                "ok": True,
+                "status": "running",
+                "message": "Récupération des tailles déjà en cours.",
+            }
+
+        try:
+            progress_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with progress_path.open("w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "status": "running",
+                        "scanned_categories": 0,
+                        "total_categories": 6,
+                        "sizes_found": 0,
+                        "progress_percent": 0,
+                        "progress_label": "Préparation du scan…",
+                        "message": "Démarrage de la récupération des tailles.",
+                    },
+                    file,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+
+            with log_path.open("a", encoding="utf-8") as log_file:
+                size_scan_process = subprocess.Popen(
+                    [sys.executable, str(script_path)],
+                    cwd=str(PROJECT_DIR),
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+
+            return {
+                "ok": True,
+                "status": "running",
+                "message": "Récupération des tailles lancée.",
+            }
+
+        except Exception as exc:
+            logging.exception("Impossible de lancer scan_sizes.py")
+            return JSONResponse(
+                {"ok": False, "error": str(exc)},
+                status_code=500,
+            )
+
+
+@app.get("/api/sizes/scan/status")
+def sizes_scan_status():
+    progress_path = PROJECT_DIR / "data" / "sizes" / "sizes_progress.json"
+
+    if not progress_path.is_file():
+        return {
+            "status": "idle",
+            "message": "Aucun scan des tailles n'a encore été lancé.",
+        }
+
+    try:
+        with progress_path.open("r", encoding="utf-8") as file:
+            return json.load(file)
+
+    except (OSError, json.JSONDecodeError):
+        logging.exception("Impossible de lire la progression des tailles.")
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "Impossible de lire la progression du scan.",
+            },
+            status_code=500,
+        )
+
+@app.get("/api/scan/data-status")
+def scan_data_status():
+    categories_file = PROJECT_DIR / "data" / "categories" / "categories.json"
+    sizes_file = PROJECT_DIR / "data" / "sizes" / "sizes.json"
+
+    def is_valid_json(path: Path) -> bool:
+        if not path.is_file():
+            return False
+
+        try:
+            with path.open("r", encoding="utf-8") as file:
+                data = json.load(file)
+
+            return isinstance(data, (dict, list)) and len(data) > 0
+
+        except (OSError, json.JSONDecodeError):
+            return False
+
+    return {
+        "categories_available": is_valid_json(categories_file),
+        "sizes_available": is_valid_json(sizes_file),
+    }
