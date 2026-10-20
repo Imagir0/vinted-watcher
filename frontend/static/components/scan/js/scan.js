@@ -1,6 +1,7 @@
 import { $, api, notice } from "./api.js";
 import { loadCategories } from "./searchCategories.js";
 import { loadSizes } from "./searchSizes.js";
+import { loadStatuses } from "./searchStatuses.js";
 import { currentQuery, loadConfigIntoForm } from "./searchForm.js";
 import { loadItems, renderItems } from "./listings.js";
 
@@ -14,13 +15,18 @@ function updateAutoButton(running) {
     $("stat-auto").textContent = running ? "Actif" : "Inactif";
 }
 
+function refreshPickerSelections() {
+    window.refreshCategoryPickerSelection?.();
+    window.refreshSizePickerSelection?.();
+    window.refreshStatusPickerSelection?.();
+    window.refreshStatusPickerSelection?.();
+}
+
 async function loadConfig() {
     config = await api("/api/config");
 
     loadConfigIntoForm(config);
-
-    window.refreshCategoryPickerSelection?.();
-    window.refreshSizePickerSelection?.();
+    refreshPickerSelections();
 
     updateAutoButton(Boolean(config.auto_running));
 }
@@ -58,17 +64,18 @@ $("search-form").addEventListener("submit", async event => {
         });
 
         loadConfigIntoForm(config);
-
-        window.refreshCategoryPickerSelection?.();
-        window.refreshSizePickerSelection?.();
+        refreshPickerSelections();
 
         updateAutoButton(Boolean(config.auto_running));
 
-        notice("Recherche enregistrée. Les prochains scans utiliseront ces paramètres.");
+        notice(
+            "Recherche enregistrée. Les prochains scans utiliseront ces paramètres."
+        );
     } catch (error) {
         notice(`Impossible d'enregistrer : ${error.message}`, true);
     }
 });
+
 
 $("scan-btn").addEventListener("click", async () => {
     $("scan-btn").disabled = true;
@@ -82,13 +89,16 @@ $("scan-btn").addEventListener("click", async () => {
 
         await loadItems();
 
-        notice(`Scan terminé : ${result.new_items} nouveau(x) article(s).`);
+        notice(
+            `Scan terminé : ${result.new_items} nouveau(x) article(s).`
+        );
     } catch (error) {
         notice(`Échec du scan : ${error.message}`, true);
     } finally {
         $("scan-btn").disabled = false;
     }
 });
+
 
 $("auto-btn").addEventListener("click", async () => {
     try {
@@ -103,14 +113,19 @@ $("auto-btn").addEventListener("click", async () => {
 
         updateAutoButton(Boolean(result.auto_running));
 
-        notice(result.auto_running
-            ? "Surveillance automatique activée."
-            : "Surveillance automatique arrêtée."
+        notice(
+            result.auto_running
+                ? "Surveillance automatique activée."
+                : "Surveillance automatique arrêtée."
         );
     } catch (error) {
-        notice(`Impossible de modifier l'auto-scan : ${error.message}`, true);
+        notice(
+            `Impossible de modifier l'auto-scan : ${error.message}`,
+            true
+        );
     }
 });
+
 
 $("display-sort").addEventListener("change", renderItems);
 
@@ -123,18 +138,18 @@ $("display-sort").addEventListener("change", renderItems);
     $(id).addEventListener("input", renderItems);
 });
 
+
 async function init() {
-    
     await checkScanDataStatus();
 
     try {
         await loadCategories();
         await loadSizes();
+        await loadStatuses();
         await loadConfig();
         await loadItems();
 
-        window.refreshCategoryPickerSelection?.();
-        window.refreshSizePickerSelection?.();
+        refreshPickerSelections();
 
         notice(
             "Prêt. Les articles affichés sont ceux déjà enregistrés par le scanner."
@@ -156,7 +171,9 @@ async function init() {
     }
 }
 
+
 $("save-search-btn").addEventListener("click", saveCurrentSearch);
+
 
 async function refreshSavedSearches() {
     const data = await api("/api/saved-searches");
@@ -164,7 +181,9 @@ async function refreshSavedSearches() {
     const empty = document.querySelector(".saved-searches-empty");
 
     if (!list || !empty) {
-        throw new Error("Le menu des recherches enregistrées est incomplet.");
+        throw new Error(
+            "Le menu des recherches enregistrées est incomplet."
+        );
     }
 
     list.replaceChildren();
@@ -189,6 +208,7 @@ async function refreshSavedSearches() {
         remove.type = "button";
         remove.textContent = "Supprimer";
         remove.className = "saved-search-delete";
+
         remove.addEventListener("click", async event => {
             event.stopPropagation();
 
@@ -204,32 +224,43 @@ async function refreshSavedSearches() {
                 await refreshSavedSearches();
                 notice("Recherche supprimée.");
             } catch (error) {
-                notice(`Suppression impossible : ${error.message}`, true);
+                notice(
+                    `Suppression impossible : ${error.message}`,
+                    true
+                );
             }
         });
 
         button.append(title, details);
+
         button.addEventListener("click", async () => {
             try {
-                const result = await api("/api/saved-searches/load", {
-                    method: "POST",
-                    body: JSON.stringify({ id: search.id })
-                });
+                const result = await api(
+                    "/api/saved-searches/load",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({ id: search.id })
+                    }
+                );
 
                 config = result.config;
                 loadConfigIntoForm(config);
-
-                window.refreshCategoryPickerSelection?.();
-                window.refreshSizePickerSelection?.();
+                refreshPickerSelections();
 
                 updateAutoButton(Boolean(result.auto_running));
 
                 $("saved-searches-menu").hidden = true;
-                $("saved-searches-btn").setAttribute("aria-expanded", "false");
+                $("saved-searches-btn").setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
 
                 notice(`Recherche chargée : ${search.name}.`);
             } catch (error) {
-                notice(`Chargement impossible : ${error.message}`, true);
+                notice(
+                    `Chargement impossible : ${error.message}`,
+                    true
+                );
             }
         });
 
@@ -240,6 +271,7 @@ async function refreshSavedSearches() {
     }
 }
 
+
 $("saved-searches-btn").addEventListener("click", async () => {
     const menu = $("saved-searches-menu");
     const opening = menu.hidden;
@@ -248,35 +280,48 @@ $("saved-searches-btn").addEventListener("click", async () => {
         try {
             await refreshSavedSearches();
         } catch (error) {
-            notice(`Chargement des recherches impossible : ${error.message}`, true);
+            notice(
+                `Chargement des recherches impossible : ${error.message}`,
+                true
+            );
             return;
         }
     }
 
     menu.hidden = !opening;
+
     $("saved-searches-btn").setAttribute(
         "aria-expanded",
         String(opening)
     );
 });
 
+
 $("saved-searches-close").addEventListener("click", () => {
     $("saved-searches-menu").hidden = true;
-    $("saved-searches-btn").setAttribute("aria-expanded", "false");
+
+    $("saved-searches-btn").setAttribute(
+        "aria-expanded",
+        "false"
+    );
 });
+
 
 async function saveCurrentSearch() {
     try {
-        // Sauvegarde d'abord les paramètres actuellement présents dans le formulaire.
+        // Sauvegarde d'abord les paramètres présents dans le formulaire.
         const query = currentQuery();
+
         const pages = Math.max(
             1,
             Math.min(10, Number($("pages").value) || 2)
         );
+
         const interval = Math.max(
             60,
             Number($("interval_seconds").value) || 300
         );
+
         const excluded = $("excluded_keywords").value
             .split(/\r?\n/)
             .map(value => value.trim())
@@ -292,20 +337,34 @@ async function saveCurrentSearch() {
             })
         });
 
+        loadConfigIntoForm(config);
+        refreshPickerSelections();
+
         const result = await api("/api/saved-searches", {
             method: "POST"
         });
 
         await refreshSavedSearches();
+
         notice(`Recherche enregistrée : ${result.item.name}.`);
     } catch (error) {
-        notice(`Enregistrement impossible : ${error.message}`, true);
+        notice(
+            `Enregistrement impossible : ${error.message}`,
+            true
+        );
     }
 }
 
+
 async function checkScanDataStatus() {
-    const categoriesWarning = document.getElementById("categories-warning");
-    const sizesWarning = document.getElementById("sizes-warning");
+    const categoriesWarning =
+        document.getElementById("categories-warning");
+
+    const sizesWarning =
+        document.getElementById("sizes-warning");
+
+    const statusesWarning =
+        document.getElementById("statuses-warning");
 
     try {
         const response = await fetch(
@@ -314,7 +373,9 @@ async function checkScanDataStatus() {
         );
 
         if (!response.ok) {
-            throw new Error("Impossible de vérifier les données.");
+            throw new Error(
+                "Impossible de vérifier les données."
+            );
         }
 
         const data = await response.json();
@@ -326,21 +387,37 @@ async function checkScanDataStatus() {
         if (sizesWarning) {
             sizesWarning.hidden = data.sizes_available;
         }
+
+        if (statusesWarning) {
+            statusesWarning.hidden = data.statuses_available;
+        }
     } catch (error) {
-        console.error("Erreur de vérification des données :", error);
+        console.error(
+            "Erreur de vérification des données :",
+            error
+        );
 
         // En cas d'erreur, signaler que l'état des données est inconnu.
         if (categoriesWarning) {
             categoriesWarning.hidden = false;
-            categoriesWarning.textContent = "Vérification impossible";
+            categoriesWarning.textContent =
+                "Vérification impossible";
         }
 
         if (sizesWarning) {
             sizesWarning.hidden = false;
-            sizesWarning.textContent = "Vérification impossible";
+            sizesWarning.textContent =
+                "Vérification impossible";
+        }
+
+        if (statusesWarning) {
+            statusesWarning.hidden = false;
+            statusesWarning.textContent =
+                "Vérification impossible";
         }
     }
 }
+
 
 init();
 await refreshSavedSearches();

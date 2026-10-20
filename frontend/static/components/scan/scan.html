@@ -205,8 +205,29 @@
                     ></div>
 
                     <div class="field">
-                        <label for="status_ids">Identifiants d'état</label>
-                        <input id="status_ids" placeholder="Ex. 6,2">
+                        <label for="status_ids">État des objets</label>
+                        <div id="status_ids" class="multi-select">
+                            <button
+                                type="button"
+                                class="multi-select-trigger"
+                                id="status_ids_trigger"
+                                aria-expanded="false"
+                                aria-haspopup="listbox"
+                            >
+                                <span>Sélectionner un ou plusieurs états</span>
+                                <span class="multi-select-arrow">▾</span>
+                            </button>
+
+                            <div
+                                id="status_ids_options"
+                                class="multi-select-options"
+                                role="listbox"
+                                aria-multiselectable="true"
+                                hidden
+                            >
+                            </div>
+                            <input type="hidden" id="selected_statuses" value="[]">
+                        </div>
                     </div>
 
                     <div class="field">

@@ -606,6 +606,8 @@ def sizes_scan_status():
 def scan_data_status():
     categories_file = PROJECT_DIR / "data" / "categories" / "categories.json"
     sizes_file = PROJECT_DIR / "data" / "sizes" / "sizes.json"
+    statuses_file = PROJECT_DIR / "data" / "statuses" / "statuses.json"
+    
 
     def is_valid_json(path: Path) -> bool:
         if not path.is_file():
@@ -623,4 +625,5 @@ def scan_data_status():
     return {
         "categories_available": is_valid_json(categories_file),
         "sizes_available": is_valid_json(sizes_file),
+        "statuses_available": is_valid_json(statuses_file),
     }
