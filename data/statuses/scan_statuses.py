@@ -72,21 +72,19 @@ def save_json(path: Path, data):
             time.sleep(0.2 * (attempt + 1))
 
 
+
 def save_progress(
     status,
     statuses_found=0,
     current_status=None,
     message=None,
 ):
-    """Enregistre la progression du scan."""
+    """Enregistre la progression du scan des états."""
 
     progress = {
         "status": status,
-        "scanned_categories": statuses_found,
-        "scanned_ids": statuses_found,
-        "total_ids": statuses_found if status == "done" else 0,
-        "categories_found": statuses_found,
-        "current_category": current_status,
+        "statuses_found": statuses_found,
+        "current_status": current_status,
         "progress_percent": 0,
         "progress_label": current_status or "Préparation du scan…",
         "message": message or "",
@@ -106,6 +104,7 @@ def save_progress(
         progress["progress_label"] = "Échec du scan"
 
     save_json(PROGRESS_FILE, progress)
+
 
 
 # ============================================================

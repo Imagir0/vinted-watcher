@@ -28,13 +28,18 @@ logging.basicConfig(
 
 app = FastAPI(title="Vinted Web Scanner")
 
-# Chemins du projet
+# ============================================================
+# CHEMINS DU PROJET
+# ============================================================
+
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 FRONTEND_DIR = PROJECT_DIR / "frontend"
 STATIC_DIR = FRONTEND_DIR / "static"
+
 FAVICON_PATH = BASE_DIR / "static" / "favicon.ico"
 INDEX_PATH = FRONTEND_DIR / "index.html"
+
 SEARCH_PATH = STATIC_DIR / "components" / "search" / "search.html"
 SCAN_PATH = STATIC_DIR / "components" / "scan" / "scan.html"
 PARAMETERS_PATH = STATIC_DIR / "components" / "parameters" / "parameters.html"
@@ -42,7 +47,11 @@ PROFILE_PATH = STATIC_DIR / "components" / "profile" / "profile.html"
 
 DATA_DIR = PROJECT_DIR / "data"
 
-# Fichiers statiques : CSS, JavaScript, images, composants HTML, etc.
+
+# ============================================================
+# FICHIERS STATIQUES
+# ============================================================
+
 app.mount(
     "/static",
     StaticFiles(directory=STATIC_DIR),
@@ -54,6 +63,13 @@ app.mount(
     StaticFiles(directory=DATA_DIR),
     name="data",
 )
+
+app.mount(
+    "/assets",
+    StaticFiles(directory=FRONTEND_DIR / "assets"),
+    name="assets",
+)
+
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
@@ -68,14 +84,7 @@ def favicon():
         media_type="image/x-icon",
     )
 
-# Fichiers assets : images, sons...
-app.mount(
-    "/assets",
-    StaticFiles(directory=FRONTEND_DIR / "assets"),
-    name="assets",
-)
 
-# Fichier css index
 @app.get("/index.css")
 def index_css():
     css_path = FRONTEND_DIR / "index.css"
@@ -86,7 +95,10 @@ def index_css():
             detail="Fichier index.css introuvable.",
         )
 
-    return FileResponse(css_path, media_type="text/css")
+    return FileResponse(
+        css_path,
+        media_type="text/css",
+    )
 
 
 @app.get("/profile.js")
@@ -105,6 +117,10 @@ def profile_js():
     )
 
 
+# ============================================================
+# DÉMARRAGE
+# ============================================================
+
 @app.on_event("startup")
 def startup():
     db.init_db()
@@ -112,6 +128,10 @@ def startup():
     if db.get_config().get("auto_scan"):
         scanner.start_auto()
 
+
+# ============================================================
+# MODÈLES
+# ============================================================
 
 class ConfigUpdate(BaseModel):
     queries: list | None = None
@@ -124,6 +144,10 @@ class SavedSearchLoad(BaseModel):
     id: int
 
 
+# ============================================================
+# PAGES
+# ============================================================
+
 @app.get("/")
 def index():
     if not INDEX_PATH.is_file():
@@ -132,7 +156,10 @@ def index():
             detail=f"Fichier index.html introuvable : {INDEX_PATH}",
         )
 
-    return FileResponse(INDEX_PATH, media_type="text/html")
+    return FileResponse(
+        INDEX_PATH,
+        media_type="text/html",
+    )
 
 
 @app.get("/search", response_class=FileResponse)
@@ -140,10 +167,7 @@ def search_page():
     if not SEARCH_PATH.is_file():
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Fichier search.html introuvable : "
-                f"{SEARCH_PATH}"
-            ),
+            detail=f"Fichier search.html introuvable : {SEARCH_PATH}",
         )
 
     return FileResponse(SEARCH_PATH, media_type="text/html")
@@ -154,10 +178,7 @@ def scan_page():
     if not SCAN_PATH.is_file():
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Fichier scan.html introuvable : "
-                f"{SCAN_PATH}"
-            ),
+            detail=f"Fichier scan.html introuvable : {SCAN_PATH}",
         )
 
     return FileResponse(SCAN_PATH, media_type="text/html")
@@ -168,10 +189,7 @@ def parameters_page():
     if not PARAMETERS_PATH.is_file():
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Fichier parameters.html introuvable : "
-                f"{PARAMETERS_PATH}"
-            ),
+            detail=f"Fichier parameters.html introuvable : {PARAMETERS_PATH}",
         )
 
     return FileResponse(PARAMETERS_PATH, media_type="text/html")
@@ -187,6 +205,10 @@ def profile_page():
 
     return FileResponse(PROFILE_PATH, media_type="text/html")
 
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
 @app.get("/api/config")
 def get_config():
@@ -215,6 +237,10 @@ def update_config(update: ConfigUpdate):
     }
 
 
+# ============================================================
+# SCAN DES ARTICLES
+# ============================================================
+
 @app.post("/api/scan")
 def scan_now():
     try:
@@ -222,6 +248,7 @@ def scan_now():
             "ok": True,
             "new_items": scanner.run_scan(),
         }
+
     except Exception as exc:
         logging.exception("Échec du scan manuel")
 
@@ -238,8 +265,10 @@ def scan_now():
 def auto(action: str):
     if action == "start":
         scanner.start_auto()
+
     elif action == "stop":
         scanner.stop_auto()
+
     else:
         return JSONResponse(
             {
@@ -279,6 +308,10 @@ def reset():
     db.reset_state()
     return {"ok": True}
 
+
+# ============================================================
+# RECHERCHES SAUVEGARDÉES
+# ============================================================
 
 @app.get("/api/saved-searches")
 def get_saved_searches():
@@ -334,6 +367,10 @@ def remove_saved_search(search_id: int):
     return {"ok": True}
 
 
+# ============================================================
+# PROFIL PUBLIC
+# ============================================================
+
 @app.get("/api/profile/{member_id}")
 def profile_data(member_id: str):
     async def event_stream():
@@ -356,12 +393,18 @@ def profile_data(member_id: str):
     )
 
 
+# ============================================================
+# FILTRES VINTED
+# ============================================================
+
 @app.get("/api/filters")
 def get_filters():
     try:
         data = filters_sync.read_filters()
+
     except (OSError, json.JSONDecodeError):
         logging.exception("Impossible de lire vinted_filters.json")
+
         raise HTTPException(
             status_code=500,
             detail="Le fichier des filtres est illisible.",
@@ -380,14 +423,21 @@ def get_filters():
 def sync_filters():
     try:
         return filters_sync.sync_filters()
+
     except RuntimeError as exc:
-        logging.warning("Synchronisation des filtres interrompue : %s", exc)
+        logging.warning(
+            "Synchronisation des filtres interrompue : %s",
+            exc,
+        )
+
         return JSONResponse(
             {"ok": False, "error": str(exc)},
             status_code=409 if "déjà en cours" in str(exc) else 502,
         )
+
     except Exception:
         logging.exception("Échec de la synchronisation des filtres Vinted")
+
         return JSONResponse(
             {
                 "ok": False,
@@ -400,7 +450,10 @@ def sync_filters():
         )
 
 
-# État du scan des catégories
+# ============================================================
+# SYNCHRONISATION DES CATÉGORIES
+# ============================================================
+
 category_scan_process = None
 category_scan_lock = threading.Lock()
 
@@ -409,8 +462,9 @@ category_scan_lock = threading.Lock()
 def scan_categories():
     global category_scan_process
 
-    script_path = PROJECT_DIR / "data" / "categories" / "scan_categories.py"
-    log_path = PROJECT_DIR / "data" / "categories" / "scan_categories.log"
+    script_path = DATA_DIR / "categories" / "scan_categories.py"
+    log_path = DATA_DIR / "categories" / "scan_categories.log"
+    progress_path = DATA_DIR / "categories" / "categories_progress.json"
 
     if not script_path.is_file():
         return JSONResponse(
@@ -421,12 +475,7 @@ def scan_categories():
             status_code=404,
         )
 
-    # Effacer les anciens logs au démarrage du scan
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_path.write_text("", encoding="utf-8")
-    
     with category_scan_lock:
-        # Ne pas lancer un second scan si le premier tourne encore.
         if (
             category_scan_process is not None
             and category_scan_process.poll() is None
@@ -434,31 +483,32 @@ def scan_categories():
             return {
                 "ok": True,
                 "status": "running",
-                "message": "Récupération des catégories en cours… Temps estimé ≈ 30 minutes "
-                "Vous pouvez changer de page : le scan continue en arrière-plan.",
+                "message": (
+                    "Récupération des catégories en cours. "
+                    "Vous pouvez changer de page : le scan continue en arrière-plan."
+                ),
             }
 
         try:
-            with open(log_path, "a", encoding="utf-8") as log_file:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
 
-                progress_path = PROJECT_DIR / "data" / "categories" / "categories_progress.json"
+            with progress_path.open("w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "status": "running",
+                        "scanned_ids": 0,
+                        "total_ids": 0,
+                        "progress_percent": 0,
+                        "categories_found": 0,
+                        "progress_label": "Préparation du scan…",
+                        "message": "Démarrage du scan des catégories…",
+                    },
+                    file,
+                    ensure_ascii=False,
+                    indent=2,
+                )
 
-                with progress_path.open("w", encoding="utf-8") as file:
-                    json.dump(
-                        {
-                            "status": "running",
-                            "scanned_ids": 0,
-                            "total_ids": 0,
-                            "progress_percent": 0,
-                            "categories_found": 0,
-                            "progress_label": "Préparation du scan…",
-                            "message": "Démarrage du scan des catégories…",
-                        },
-                        file,
-                        ensure_ascii=False,
-                        indent=2,
-                    )
-
+            with log_path.open("w", encoding="utf-8") as log_file:
                 category_scan_process = subprocess.Popen(
                     [sys.executable, str(script_path)],
                     cwd=str(PROJECT_DIR),
@@ -474,9 +524,8 @@ def scan_categories():
             }
 
         except Exception as exc:
-            logging.exception(
-                "Impossible de lancer scan_categories.py"
-            )
+            logging.exception("Impossible de lancer scan_categories.py")
+
             return JSONResponse(
                 {
                     "ok": False,
@@ -485,9 +534,10 @@ def scan_categories():
                 status_code=500,
             )
 
+
 @app.get("/api/categories/scan/status")
 def category_scan_status():
-    progress_path = PROJECT_DIR / "data" / "categories" / "categories_progress.json"
+    progress_path = DATA_DIR / "categories" / "categories_progress.json"
 
     if not progress_path.is_file():
         return {
@@ -497,11 +547,11 @@ def category_scan_status():
 
     try:
         with progress_path.open("r", encoding="utf-8") as file:
-            progress = json.load(file)
-
-        return progress
+            return json.load(file)
 
     except (OSError, json.JSONDecodeError):
+        logging.exception("Impossible de lire la progression des catégories.")
+
         return JSONResponse(
             {
                 "status": "error",
@@ -510,26 +560,37 @@ def category_scan_status():
             status_code=500,
         )
 
-# État du scan des tailles
+
+# ============================================================
+# SYNCHRONISATION DES TAILLES
+# ============================================================
+
 size_scan_process = None
 size_scan_lock = threading.Lock()
+
 
 @app.post("/api/sizes/scan")
 def scan_sizes():
     global size_scan_process
 
-    script_path = PROJECT_DIR / "data" / "sizes" / "scan_sizes.py"
-    log_path = PROJECT_DIR / "data" / "sizes" / "scan_sizes.log"
-    progress_path = PROJECT_DIR / "data" / "sizes" / "sizes_progress.json"
+    script_path = DATA_DIR / "sizes" / "scan_sizes.py"
+    log_path = DATA_DIR / "sizes" / "scan_sizes.log"
+    progress_path = DATA_DIR / "sizes" / "sizes_progress.json"
 
     if not script_path.is_file():
         return JSONResponse(
-            {"ok": False, "error": f"Script introuvable : {script_path}"},
+            {
+                "ok": False,
+                "error": f"Script introuvable : {script_path}",
+            },
             status_code=404,
         )
 
     with size_scan_lock:
-        if size_scan_process is not None and size_scan_process.poll() is None:
+        if (
+            size_scan_process is not None
+            and size_scan_process.poll() is None
+        ):
             return {
                 "ok": True,
                 "status": "running",
@@ -572,15 +633,19 @@ def scan_sizes():
 
         except Exception as exc:
             logging.exception("Impossible de lancer scan_sizes.py")
+
             return JSONResponse(
-                {"ok": False, "error": str(exc)},
+                {
+                    "ok": False,
+                    "error": str(exc),
+                },
                 status_code=500,
             )
 
 
 @app.get("/api/sizes/scan/status")
 def sizes_scan_status():
-    progress_path = PROJECT_DIR / "data" / "sizes" / "sizes_progress.json"
+    progress_path = DATA_DIR / "sizes" / "sizes_progress.json"
 
     if not progress_path.is_file():
         return {
@@ -594,6 +659,7 @@ def sizes_scan_status():
 
     except (OSError, json.JSONDecodeError):
         logging.exception("Impossible de lire la progression des tailles.")
+
         return JSONResponse(
             {
                 "status": "error",
@@ -602,12 +668,184 @@ def sizes_scan_status():
             status_code=500,
         )
 
+
+# ============================================================
+# SYNCHRONISATION DES ÉTATS
+# ============================================================
+
+status_scan_process = None
+status_scan_lock = threading.Lock()
+
+
+@app.post("/api/statuses/scan")
+def scan_statuses():
+    global status_scan_process
+
+    script_path = DATA_DIR / "statuses" / "scan_statuses.py"
+    log_path = DATA_DIR / "statuses" / "scan_statuses.log"
+    progress_path = DATA_DIR / "statuses" / "statuses_progress.json"
+
+    if not script_path.is_file():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": f"Script introuvable : {script_path}",
+            },
+            status_code=404,
+        )
+
+    with status_scan_lock:
+        if (
+            status_scan_process is not None
+            and status_scan_process.poll() is None
+        ):
+            return {
+                "ok": True,
+                "status": "running",
+                "message": "Récupération des états déjà en cours.",
+            }
+
+        try:
+            progress_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with progress_path.open("w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "status": "running",
+                        "statuses_found": 0,
+                        "progress_percent": 0,
+                        "progress_label": "Préparation du scan…",
+                        "message": "Démarrage de la récupération des états.",
+                    },
+                    file,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+
+            with log_path.open("w", encoding="utf-8") as log_file:
+                status_scan_process = subprocess.Popen(
+                    [sys.executable, str(script_path)],
+                    cwd=str(PROJECT_DIR),
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+
+            return {
+                "ok": True,
+                "status": "running",
+                "message": "Récupération des états lancée.",
+            }
+
+        except Exception as exc:
+            logging.exception("Impossible de lancer scan_statuses.py")
+
+            try:
+                with progress_path.open("w", encoding="utf-8") as file:
+                    json.dump(
+                        {
+                            "status": "error",
+                            "statuses_found": 0,
+                            "progress_percent": 0,
+                            "progress_label": "Échec du démarrage",
+                            "message": str(exc),
+                        },
+                        file,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+            except OSError:
+                logging.exception(
+                    "Impossible d'enregistrer l'erreur du scan des états."
+                )
+
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": str(exc),
+                },
+                status_code=500,
+            )
+
+
+@app.get("/api/statuses/scan/status")
+def statuses_scan_status():
+    progress_path = DATA_DIR / "statuses" / "statuses_progress.json"
+
+    if not progress_path.is_file():
+        return {
+            "status": "idle",
+            "message": "Aucun scan des états n'a encore été lancé.",
+        }
+
+    try:
+        with progress_path.open("r", encoding="utf-8") as file:
+            return json.load(file)
+
+    except (OSError, json.JSONDecodeError):
+        logging.exception("Impossible de lire la progression des états.")
+
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "Impossible de lire la progression du scan.",
+            },
+            status_code=500,
+        )
+
+
+@app.get("/api/statuses/scan/stats")
+def statuses_scan_stats():
+    statuses_path = DATA_DIR / "statuses" / "statuses.json"
+
+    if not statuses_path.is_file():
+        return {
+            "total_statuses": 0,
+            "completed_at": None,
+        }
+
+    try:
+        with statuses_path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        if isinstance(data, list):
+            total = len(data)
+        elif isinstance(data, dict):
+            total = len(data)
+        else:
+            total = 0
+
+        from datetime import datetime
+
+        completed_at = datetime.fromtimestamp(
+            statuses_path.stat().st_mtime
+        ).isoformat(timespec="seconds")
+
+        return {
+            "total_statuses": total,
+            "completed_at": completed_at,
+        }
+
+    except (OSError, json.JSONDecodeError):
+        logging.exception("Impossible de lire les statistiques des états.")
+
+        return JSONResponse(
+            {
+                "error": "Impossible de lire les données des états.",
+            },
+            status_code=500,
+        )
+
+
+# ============================================================
+# DISPONIBILITÉ DES DONNÉES
+# ============================================================
+
 @app.get("/api/scan/data-status")
 def scan_data_status():
-    categories_file = PROJECT_DIR / "data" / "categories" / "categories.json"
-    sizes_file = PROJECT_DIR / "data" / "sizes" / "sizes.json"
-    statuses_file = PROJECT_DIR / "data" / "statuses" / "statuses.json"
-    
+    categories_file = DATA_DIR / "categories" / "categories.json"
+    sizes_file = DATA_DIR / "sizes" / "sizes.json"
+    statuses_file = DATA_DIR / "statuses" / "statuses.json"
 
     def is_valid_json(path: Path) -> bool:
         if not path.is_file():
