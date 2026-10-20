@@ -513,4 +513,227 @@ document.addEventListener("DOMContentLoaded", () => {
         loadSizeStats();
         checkSizeStatus();
     }
+
+    // =========================================================
+    // ÉTATS DES ARTICLES
+    // =========================================================
+
+    const statusElements = {
+        button: document.getElementById("sync-statuses-btn"),
+        total: document.getElementById("conditions-total"),
+        status: document.getElementById("conditions-status"),
+        lastUpdate: document.getElementById("conditions-last-update"),
+        progressContainer: document.getElementById(
+            "conditions-progress-container"
+        ),
+        progressBar: document.getElementById("conditions-progress-bar"),
+        progressLabel: document.getElementById("conditions-progress-label"),
+        progressPercent: document.getElementById("conditions-progress-percent"),
+    };
+
+    if (statusElements.button) {
+        let statusPolling = null;
+        let scanIsRunning = false;
+
+        async function loadStatusStats() {
+            try {
+                const response = await fetch(
+                    `/api/statuses/scan/stats?t=${Date.now()}`,
+                    { cache: "no-store" }
+                );
+
+                if (!response.ok) return;
+
+                const stats = await response.json();
+
+                if (
+                    !scanIsRunning &&
+                    statusElements.total &&
+                    Number.isFinite(Number(stats.total_statuses))
+                ) {
+                    statusElements.total.textContent =
+                        Number(stats.total_statuses).toLocaleString("fr-FR");
+                }
+
+                setLastUpdate(statusElements.lastUpdate, stats.completed_at);
+            } catch (error) {
+                console.error(
+                    "Erreur de lecture des statistiques des états :",
+                    error
+                );
+            }
+        }
+
+        function renderStatusScan(data) {
+            const running = data.status === "running";
+            const done = data.status === "done";
+            const failed = data.status === "error";
+
+            scanIsRunning = running;
+
+            statusElements.button.disabled = running;
+            statusElements.button.textContent = running
+                ? "Récupération en cours…"
+                : "Récupérer les états";
+
+            if (statusElements.status) {
+                statusElements.status.textContent =
+                    data.message ||
+                    (running
+                        ? "Récupération des états en cours…"
+                        : done
+                            ? "Récupération des états terminée."
+                            : failed
+                                ? "La récupération des états a échoué."
+                                : "Prêt à récupérer les états.");
+            }
+
+            if (
+                statusElements.total &&
+                data.statuses_found !== undefined &&
+                Number.isFinite(Number(data.statuses_found))
+            ) {
+                statusElements.total.textContent =
+                    Number(data.statuses_found).toLocaleString("fr-FR");
+            }
+
+            if (running || done) {
+                if (statusElements.progressContainer) {
+                    statusElements.progressContainer.hidden = false;
+                }
+
+                const percent = Number(data.progress_percent);
+                const safePercent = done
+                    ? 100
+                    : Number.isFinite(percent)
+                        ? Math.max(0, Math.min(100, percent))
+                        : 0;
+
+                if (statusElements.progressBar) {
+                    statusElements.progressBar.style.width =
+                        `${safePercent}%`;
+                }
+
+                if (statusElements.progressPercent) {
+                    statusElements.progressPercent.textContent =
+                        `${Math.round(safePercent)} %`;
+                }
+
+                if (statusElements.progressLabel) {
+                    statusElements.progressLabel.textContent = done
+                        ? "Terminé"
+                        : data.progress_label || "Scan en cours…";
+                }
+            } else if (statusElements.progressContainer) {
+                statusElements.progressContainer.hidden = true;
+            }
+
+            if (done) {
+                loadStatusStats();
+            }
+        }
+
+        async function checkStatusScan() {
+            try {
+                const response = await fetch(
+                    `/api/statuses/scan/status?t=${Date.now()}`,
+                    { cache: "no-store" }
+                );
+
+                if (!response.ok) {
+                    console.error(
+                        "Erreur HTTP lors de la lecture de la progression des états :",
+                        response.status
+                    );
+                    return;
+                }
+
+                const data = await response.json();
+                renderStatusScan(data);
+
+                if (data.status === "running") {
+                    if (statusPolling === null) {
+                        statusPolling = setInterval(
+                            checkStatusScan,
+                            1000
+                        );
+                    }
+                } else if (statusPolling !== null) {
+                    clearInterval(statusPolling);
+                    statusPolling = null;
+                }
+            } catch (error) {
+                console.error(
+                    "Erreur de vérification du scan des états :",
+                    error
+                );
+            }
+        }
+
+        statusElements.button.addEventListener("click", async () => {
+            statusElements.button.disabled = true;
+            statusElements.button.textContent = "Lancement…";
+
+            if (statusElements.status) {
+                statusElements.status.textContent =
+                    "Lancement du scan des états…";
+            }
+
+            if (statusElements.total) {
+                statusElements.total.textContent = "0";
+            }
+
+            if (statusElements.progressBar) {
+                statusElements.progressBar.style.width = "0%";
+            }
+
+            if (statusElements.progressPercent) {
+                statusElements.progressPercent.textContent = "0 %";
+            }
+
+            if (statusElements.progressLabel) {
+                statusElements.progressLabel.textContent =
+                    "Préparation du scan…";
+            }
+
+            if (statusElements.progressContainer) {
+                statusElements.progressContainer.hidden = false;
+            }
+
+            try {
+                const response = await fetch("/api/statuses/scan", {
+                    method: "POST",
+                    headers: { Accept: "application/json" },
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.ok) {
+                    throw new Error(
+                        result.error ||
+                        "Impossible de lancer le scan des états."
+                    );
+                }
+
+                if (statusElements.status) {
+                    statusElements.status.textContent =
+                        result.message || "Scan des états lancé.";
+                }
+
+                await checkStatusScan();
+            } catch (error) {
+                if (statusElements.status) {
+                    statusElements.status.textContent =
+                        `Erreur : ${error.message}`;
+                }
+
+                statusElements.button.disabled = false;
+                statusElements.button.textContent = "Récupérer les états";
+            }
+        });
+
+        loadStatusStats();
+        checkStatusScan();
+    }
+
 });

@@ -205,7 +205,14 @@
                     ></div>
 
                     <div class="field">
-                        <label for="status_ids">État des objets</label>
+                        <div class="field-label-row">
+                            <label for="status_ids_trigger">État des objets</label>
+                            <span id="statuses-warning" class="data-warning" hidden>
+                                Données absentes —
+                                <a href="/parameters">les récupérer</a>
+                            </span>
+                        </div>
+
                         <div id="status_ids" class="multi-select">
                             <button
                                 type="button"
