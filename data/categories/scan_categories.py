@@ -77,7 +77,6 @@ def iter_category_nodes(categories):
         yield from iter_category_nodes(category.get("children", []))
 
 
-
 def save_progress(
     status,
     scanned_categories,
@@ -86,10 +85,14 @@ def save_progress(
     message=None,
     total_categories=None,
 ):
-    """Enregistre la progression dans le format attendu par la page Paramètres."""
+    """
+    Enregistre la progression dans le format attendu par la page Paramètres.
 
-    # Le total connu correspond au nombre de catégories déjà enregistrées.
-    # Il ne représente pas nécessairement le nombre final de catégories.
+    Pendant le scan, le nombre total définitif est inconnu.
+    La jauge utilise donc le rapport entre les catégories traitées
+    et les catégories découvertes jusqu'à présent.
+    """
+
     progress = {
         "status": status,
         "scanned_categories": scanned_categories,
@@ -103,23 +106,32 @@ def save_progress(
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    if total_categories is not None and total_categories > 0:
-        progress["progress_percent"] = min(
-            99,
-            round(scanned_categories / total_categories * 100),
+    if status == "running":
+        denominator = max(
+            categories_found,
+            scanned_categories,
+            1,
         )
 
-    if status == "done":
+        # Progression indicative : le total final est inconnu.
+        # On réserve les 5 derniers pourcents à la finalisation.
+        progress["progress_percent"] = min(
+            95,
+            round(scanned_categories / denominator * 95),
+        )
+
+    elif status == "done":
         progress["progress_percent"] = 100
         progress["progress_label"] = "Terminé"
+
     elif status == "done_with_errors":
         progress["progress_percent"] = 100
         progress["progress_label"] = "Terminé avec des erreurs"
+
     elif status == "error":
         progress["progress_label"] = "Échec du scan"
 
     save_json(PROGRESS_FILE, progress)
-
 
 
 # ============================================================
@@ -258,7 +270,9 @@ async def return_to_root(page):
                 break
 
         if not clicked:
-            raise RuntimeError("Le bouton Retour est présent mais non cliquable.")
+            raise RuntimeError(
+                "Le bouton Retour est présent mais non cliquable."
+            )
 
     raise RuntimeError(
         "Impossible de revenir au niveau principal : profondeur maximale atteinte."
@@ -281,11 +295,15 @@ async def extract_visible_categories(page):
                 continue
 
             html_id = await element.get_attribute("id") or ""
-            match = re.fullmatch(r"catalog_ids-list-item-(\d+)", html_id)
+            match = re.fullmatch(
+                r"catalog_ids-list-item-(\d+)",
+                html_id,
+            )
             if not match:
                 continue
 
             category_id = match.group(1)
+
             if category_id in seen_ids:
                 continue
 
@@ -294,8 +312,9 @@ async def extract_visible_categories(page):
                 continue
 
             # Vinted ajoute cette classe aux catégories qui ouvrent un sous-menu.
-            # On peut donc reconnaître les feuilles avant de cliquer dessus.
-            class_names = set((await element.get_attribute("class") or "").split())
+            class_names = set(
+                (await element.get_attribute("class") or "").split()
+            )
             has_children = "web_ui__Cell__with-chevron" in class_names
 
             seen_ids.add(category_id)
@@ -308,18 +327,28 @@ async def extract_visible_categories(page):
             )
 
         except Exception:
-            logger.debug("Élément de catégorie ignoré.", exc_info=True)
+            logger.debug(
+                "Élément de catégorie ignoré.",
+                exc_info=True,
+            )
 
     logger.info("%s catégorie(s) détectée(s).", len(categories))
+
     for category in categories:
-        logger.info("  - %s (ID : %s)", category["label"], category["id"])
+        logger.info(
+            "  - %s (ID : %s)",
+            category["label"],
+            category["id"],
+        )
 
     return categories
 
 
 async def click_category(page, category_id):
     dropdown = await active_dropdown(page)
-    element = dropdown.locator(f'[id="catalog_ids-list-item-{category_id}"]')
+    element = dropdown.locator(
+        f'[id="catalog_ids-list-item-{category_id}"]'
+    )
 
     await element.wait_for(state="visible", timeout=10000)
     await element.scroll_into_view_if_needed()
@@ -353,15 +382,26 @@ async def menu_matches_categories(page, expected_categories):
 
         for index in range(await elements.count()):
             element = elements.nth(index)
+
             if not await element.is_visible():
                 continue
+
             html_id = await element.get_attribute("id") or ""
-            match = re.fullmatch(r"catalog_ids-list-item-(\d+)", html_id)
+            match = re.fullmatch(
+                r"catalog_ids-list-item-(\d+)",
+                html_id,
+            )
+
             if match:
                 visible_ids.add(match.group(1))
 
-        expected_ids = {item["id"] for item in expected_categories}
+        expected_ids = {
+            item["id"]
+            for item in expected_categories
+        }
+
         return visible_ids == expected_ids
+
     except Exception:
         return False
 
@@ -374,7 +414,10 @@ async def restore_level(page, path_ids, expected_categories):
     if await menu_matches_categories(page, expected_categories):
         return
 
-    logger.debug("Le menu a changé d'état ; restauration du niveau courant.")
+    logger.debug(
+        "Le menu a changé d'état ; restauration du niveau courant."
+    )
+
     await navigate_to_path(page, path_ids)
 
     if not await menu_matches_categories(page, expected_categories):
@@ -390,14 +433,22 @@ async def return_one_level(page, expected_parent_categories):
 
     for index in range(await buttons.count()):
         button = buttons.nth(index)
+
         if await button.is_visible():
             await button.click()
             await page.wait_for_timeout(NAVIGATION_DELAY_MS)
-            if await menu_matches_categories(page, expected_parent_categories):
+
+            if await menu_matches_categories(
+                page,
+                expected_parent_categories,
+            ):
                 return
+
             break
 
-    raise RuntimeError("Le bouton Retour n'a pas restauré le niveau parent attendu.")
+    raise RuntimeError(
+        "Le bouton Retour n'a pas restauré le niveau parent attendu."
+    )
 
 
 # ============================================================
@@ -411,24 +462,48 @@ class CategoryScanner:
         self.errors = []
         self.categories = []
 
+        # Chaque chemin représente une catégorie découverte.
+        # Utiliser le chemin évite de compter deux fois une catégorie
+        # si le même niveau doit être exploré à nouveau.
+        self.discovered_paths = set()
+
+    @property
+    def discovered(self):
+        """Nombre de chemins de catégories uniques découverts."""
+        return len(self.discovered_paths)
+
+    def register_discovered(self, path_ids, options):
+        """Enregistre toutes les catégories visibles d'un niveau."""
+        for item in options:
+            category_path = tuple(path_ids + [item["id"]])
+            self.discovered_paths.add(category_path)
+
     def persist(self, current_path=None, message=None):
+        """Sauvegarde l'arbre et la progression courante."""
         save_json(OUTPUT_FILE, self.categories)
-        total = sum(1 for _ in iter_category_nodes(self.categories))
+
         save_progress(
             status="running",
             scanned_categories=self.scanned,
-            categories_found=total,
+            categories_found=self.discovered,
             current_category=current_path,
             message=message or "",
         )
 
     async def scan_level(
-        self, path_ids, parent_path="", depth=0, parent_options=None,
-        return_to_parent=True
+        self,
+        path_ids,
+        parent_path="",
+        depth=0,
+        parent_options=None,
+        return_to_parent=True,
     ):
         """Explore le niveau actuellement ouvert, puis remonte avec Retour."""
         if depth > MAX_DEPTH:
-            logger.warning("Profondeur maximale atteinte : %s", parent_path)
+            logger.warning(
+                "Profondeur maximale atteinte : %s",
+                parent_path,
+            )
             return []
 
         visible_options = await extract_visible_categories(self.page)
@@ -437,23 +512,51 @@ class CategoryScanner:
         # Dans certains menus, « Tous » reprend l'ID de la catégorie parente.
         # On l'ignore pour éviter de cliquer sur la catégorie déjà sélectionnée.
         parent_id = path_ids[-1] if path_ids else None
-        options = [item for item in options if item["id"] != parent_id]
+        options = [
+            item for item in options
+            if item["id"] != parent_id
+        ]
+
+        # Enregistre immédiatement les catégories du niveau découvert.
+        # Le compteur est ainsi mis à jour avant la fin de la récursion.
+        self.register_discovered(path_ids, options)
 
         nodes = [
-            {"id": item["id"], "label": item["label"], "children": []}
+            {
+                "id": item["id"],
+                "label": item["label"],
+                "children": [],
+            }
             for item in options
         ]
+
+        # Met à jour la jauge et le nombre de catégories dès la découverte
+        # du niveau, même si aucun enfant n'a encore été traité.
+        self.persist(
+            parent_path or "Catégories principales",
+            f"{self.discovered} catégorie(s) découverte(s).",
+        )
 
         for option, node in zip(options, nodes):
             category_id = node["id"]
             label = node["label"]
-            path = f"{parent_path} > {label}" if parent_path else label
 
-            logger.info("Exploration : %s (ID : %s)", path, category_id)
+            path = (
+                f"{parent_path} > {label}"
+                if parent_path
+                else label
+            )
+
+            logger.info(
+                "Exploration : %s (ID : %s)",
+                path,
+                category_id,
+            )
+
             save_progress(
                 status="running",
                 scanned_categories=self.scanned,
-                categories_found=sum(1 for _ in iter_category_nodes(self.categories)),
+                categories_found=self.discovered,
                 current_category=path,
                 message=f"Exploration de {path}",
             )
@@ -463,7 +566,12 @@ class CategoryScanner:
                     # Feuille : son ID et son libellé sont déjà connus.
                     # Ne pas cliquer évite de sélectionner « Tous » ou de fermer
                     # le menu ; on passe directement à l'élément suivant.
-                    logger.info("Feuille détectée, aucun clic : %s (ID : %s)", label, category_id)
+                    logger.info(
+                        "Feuille détectée, aucun clic : %s (ID : %s)",
+                        label,
+                        category_id,
+                    )
+
                 else:
                     # Seules les catégories avec chevron sont ouvertes.
                     await click_category(self.page, category_id)
@@ -484,10 +592,18 @@ class CategoryScanner:
                     )
 
                 self.scanned += 1
-                self.persist(path, f"Catégorie traitée : {path}")
+
+                self.persist(
+                    path,
+                    f"Catégorie traitée : {path}",
+                )
 
             except Exception as error:
-                logger.exception("Erreur sur la catégorie : %s", path)
+                logger.exception(
+                    "Erreur sur la catégorie : %s",
+                    path,
+                )
+
                 self.errors.append(
                     {
                         "id": category_id,
@@ -496,12 +612,19 @@ class CategoryScanner:
                         "error": str(error),
                     }
                 )
-                # Après une erreur, tenter de retrouver le niveau attendu avant
-                # de poursuivre avec la catégorie suivante.
+
+                # Après une erreur, tenter de retrouver le niveau attendu
+                # avant de poursuivre avec la catégorie suivante.
                 try:
-                    await restore_level(self.page, path_ids, visible_options)
+                    await restore_level(
+                        self.page,
+                        path_ids,
+                        visible_options,
+                    )
                 except Exception:
-                    logger.exception("Impossible de restaurer le menu après erreur.")
+                    logger.exception(
+                        "Impossible de restaurer le menu après erreur."
+                    )
                     raise
 
         if return_to_parent and path_ids:
@@ -511,7 +634,11 @@ class CategoryScanner:
                 raise RuntimeError(
                     "Les catégories du niveau parent sont nécessaires pour le retour."
                 )
-            await return_one_level(self.page, parent_options)
+
+            await return_one_level(
+                self.page,
+                parent_options,
+            )
 
         return nodes
 
@@ -534,7 +661,13 @@ async def main():
 
         try:
             logger.info("Ouverture de Vinted...")
-            await page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+
+            await page.goto(
+                URL,
+                wait_until="domcontentloaded",
+                timeout=60000,
+            )
+
             await close_initial_windows(page)
             await open_category_filter(page)
 
@@ -543,6 +676,7 @@ async def main():
                 await page.pause()
 
             main_categories = await extract_visible_categories(page)
+
             if not main_categories:
                 raise RuntimeError(
                     "Aucune catégorie principale détectée. "
@@ -550,13 +684,30 @@ async def main():
                 )
 
             scanner = CategoryScanner(page)
+
             scanner.categories = [
-                {"id": item["id"], "label": item["label"], "children": []}
+                {
+                    "id": item["id"],
+                    "label": item["label"],
+                    "children": [],
+                }
                 for item in main_categories
             ]
-            scanner.persist(message="Catégories principales détectées.")
 
-            for index, category in enumerate(scanner.categories, start=1):
+            # Enregistre toutes les catégories principales dès le départ.
+            scanner.register_discovered(
+                [],
+                main_categories,
+            )
+
+            scanner.persist(
+                message="Catégories principales détectées."
+            )
+
+            for index, category in enumerate(
+                scanner.categories,
+                start=1,
+            ):
                 logger.info(
                     "========== %s/%s : %s ==========",
                     index,
@@ -568,9 +719,11 @@ async def main():
                     # Relecture du menu racine pour éviter un état obsolète.
                     await return_to_root(page)
                     current_categories = await extract_visible_categories(page)
+
                     current = next(
                         (
-                            item for item in current_categories
+                            item
+                            for item in current_categories
                             if item["id"] == category["id"]
                         ),
                         None,
@@ -586,7 +739,10 @@ async def main():
                     category["label"] = current["label"]
 
                     if current.get("has_children", False):
-                        await click_category(page, category["id"])
+                        await click_category(
+                            page,
+                            category["id"],
+                        )
 
                         if not await has_back_button(page):
                             raise RuntimeError(
@@ -601,13 +757,17 @@ async def main():
                             depth=1,
                             parent_options=main_categories,
                         )
+
                     else:
                         logger.info(
-                            "Catégorie principale terminale, aucun clic : %s (ID : %s)",
-                            category["label"], category["id"]
+                            "Catégorie principale terminale, aucun clic : "
+                            "%s (ID : %s)",
+                            category["label"],
+                            category["id"],
                         )
 
                     scanner.scanned += 1
+
                     scanner.persist(
                         category["label"],
                         f"Catégorie principale terminée : {category['label']}",
@@ -618,6 +778,7 @@ async def main():
                         "Erreur sur la catégorie principale : %s",
                         category["label"],
                     )
+
                     scanner.errors.append(
                         {
                             "id": category["id"],
@@ -625,21 +786,48 @@ async def main():
                             "error": str(error),
                         }
                     )
-                    save_json(OUTPUT_FILE, scanner.categories)
 
-            total_nodes = sum(1 for _ in iter_category_nodes(scanner.categories))
+                    save_json(
+                        OUTPUT_FILE,
+                        scanner.categories,
+                    )
+
+                    save_progress(
+                        status="running",
+                        scanned_categories=scanner.scanned,
+                        categories_found=scanner.discovered,
+                        current_category=category["label"],
+                        message=(
+                            "Erreur sur la catégorie principale : "
+                            f"{category['label']}"
+                        ),
+                    )
+
+            # Le total final est calculé à partir de l'arbre effectivement sauvegardé.
+            total_nodes = sum(
+                1 for _ in iter_category_nodes(scanner.categories)
+            )
+
             save_json(
                 STATS_FILE,
                 {
                     "total_categories": total_nodes,
-                    "completed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "completed_at": time.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
                     "errors": scanner.errors,
                 },
             )
+
             save_progress(
-                status="done_with_errors" if scanner.errors else "done",
+                status=(
+                    "done_with_errors"
+                    if scanner.errors
+                    else "done"
+                ),
                 scanned_categories=scanner.scanned,
                 categories_found=total_nodes,
+                total_categories=total_nodes,
                 message=(
                     "Récupération terminée avec des erreurs."
                     if scanner.errors
@@ -648,18 +836,31 @@ async def main():
             )
 
             logger.info("========== RÉSUMÉ ==========")
-            logger.info("Catégories enregistrées : %s", total_nodes)
-            logger.info("Fichier JSON : %s", OUTPUT_FILE)
-            logger.info("Nombre d'erreurs : %s", len(scanner.errors))
+            logger.info(
+                "Catégories enregistrées : %s",
+                total_nodes,
+            )
+            logger.info(
+                "Fichier JSON : %s",
+                OUTPUT_FILE,
+            )
+            logger.info(
+                "Nombre d'erreurs : %s",
+                len(scanner.errors),
+            )
 
         except Exception as error:
-            logger.exception("Erreur pendant la récupération des catégories.")
+            logger.exception(
+                "Erreur pendant la récupération des catégories."
+            )
+
             save_progress(
                 status="error",
                 scanned_categories=0,
                 categories_found=0,
                 message=str(error),
             )
+
             raise
 
         finally:
