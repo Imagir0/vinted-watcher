@@ -84,16 +84,20 @@ class VintedClient:
             request_params = []
 
             for key, value in params.items():
-                if key == "size_ids":
+                if key in ("size_ids", "status_ids"):
                     if isinstance(value, (list, tuple)):
-                        size_ids = value
+                        ids = value
                     else:
-                        size_ids = str(value).split(",")
+                        ids = str(value).split(",")
 
-                    for size_id in size_ids:
-                        size_id = str(size_id).strip()
-                        if size_id:
-                            request_params.append(("size_ids[]", size_id))
+                    for item_id in ids:
+                        item_id = str(item_id).strip()
+
+                        if item_id:
+                            request_params.append(
+                                (f"{key}[]", item_id)
+                            )
+
                 elif value is not None:
                     request_params.append((key, value))
 

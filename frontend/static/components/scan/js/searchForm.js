@@ -11,11 +11,11 @@ export function currentQuery() {
     const priceFrom = $("price_from").value;
     const priceTo = $("price_to").value;
 
-    const rawSizes = $("selected_sizes").value;
+    // Tailles sélectionnées
     let sizes = [];
 
     try {
-        const parsed = JSON.parse(rawSizes || "[]");
+        const parsed = JSON.parse($("selected_sizes").value || "[]");
 
         sizes = Array.isArray(parsed)
             ? parsed
@@ -30,7 +30,26 @@ export function currentQuery() {
         console.error("Format des tailles invalide :", error);
     }
 
-    const statuses = $("status_ids").value.trim();
+    // États sélectionnés
+    let statuses = [];
+
+    try {
+        const parsed = JSON.parse(
+            $("selected_statuses").value || "[]"
+        );
+
+        statuses = Array.isArray(parsed)
+            ? parsed
+                .map(status =>
+                    typeof status === "object" && status !== null
+                        ? String(status.id ?? "")
+                        : String(status)
+                )
+                .filter(Boolean)
+            : [];
+    } catch (error) {
+        console.error("Format des états invalide :", error);
+    }
 
     if (brand) {
         query["attribute_ids[brand]"] = brand;
@@ -41,18 +60,23 @@ export function currentQuery() {
     }
 
     if (priceFrom !== "") {
-        query.price_from = Math.max(0, Number(priceFrom) - 0.01).toFixed(2);
+        query.price_from = Math.max(
+            0,
+            Number(priceFrom) - 0.01
+        ).toFixed(2);
     }
 
     if (priceTo !== "") {
-        query.price_to = (Number(priceTo) + 0.01).toFixed(2);
+        query.price_to = (
+            Number(priceTo) + 0.01
+        ).toFixed(2);
     }
 
     if (sizes.length > 0) {
         query.size_ids = sizes;
     }
 
-    if (statuses) {
+    if (statuses.length > 0) {
         query.status_ids = statuses;
     }
 
@@ -68,12 +92,15 @@ export function loadConfigIntoForm(cfg) {
     $("catalog_id").value = query["attribute_ids[catalog]"] || "";
     $("price_from").value = query.price_from || "";
     $("price_to").value = query.price_to || "";
+
+    // Restaurer les tailles
     $("selected_sizes").value = JSON.stringify(
-        (Array.isArray(query.size_ids)
-            ? query.size_ids
-            : query.size_ids
-                ? [query.size_ids]
-                : []
+        (
+            Array.isArray(query.size_ids)
+                ? query.size_ids
+                : query.size_ids
+                    ? [query.size_ids]
+                    : []
         ).map(size => {
             if (typeof size === "object" && size !== null) {
                 return size;
@@ -87,12 +114,31 @@ export function loadConfigIntoForm(cfg) {
             };
         })
     );
-    $("status_ids").value = query.status_ids || "";
+
+    // Restaurer les états
+    $("selected_statuses").value = JSON.stringify(
+        (
+            Array.isArray(query.status_ids)
+                ? query.status_ids
+                : query.status_ids
+                    ? [query.status_ids]
+                    : []
+        ).map(status => {
+            if (typeof status === "object" && status !== null) {
+                return status;
+            }
+
+            return {
+                id: String(status),
+                label: String(status)
+            };
+        })
+    );
 
     $("pages").value = cfg.pages ?? 2;
     $("interval_seconds").value = cfg.interval_seconds ?? 300;
 
-    // Synchroniser les composants visuels après la restauration.
+    // Synchroniser les composants visuels
     window.refreshCategoryPickerSelection?.();
     window.refreshSizePickerSelection?.();
     window.refreshStatusPickerSelection?.();
