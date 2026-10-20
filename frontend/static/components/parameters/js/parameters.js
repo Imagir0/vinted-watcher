@@ -73,7 +73,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         function renderCategoryStatus(data) {
             const running = data.status === "running";
-            const done = data.status === "done";
+            const done = (
+                data.status === "done" ||
+                data.status === "done_with_errors"
+            );
             const failed = data.status === "error";
 
             scanIsRunning = running;

@@ -421,6 +421,10 @@ def scan_categories():
             status_code=404,
         )
 
+    # Effacer les anciens logs au démarrage du scan
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text("", encoding="utf-8")
+    
     with category_scan_lock:
         # Ne pas lancer un second scan si le premier tourne encore.
         if (

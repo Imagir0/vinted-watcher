@@ -14,7 +14,18 @@ env/
 # --- Données locales du scanner ---
 scanner.db
 scanner.db-journal
-data/
+
+# Ignorer les fichiers de data
+/data/*
+
+# Réautoriser les sous-dossiers
+!/data/**/
+
+# Réautoriser les fichiers Python
+!/data/**/*.py
+
+# Ignorer explicitement les fichiers de données
+/data/**/*.json
 
 # --- IDE / éditeurs ---
 .vscode/
