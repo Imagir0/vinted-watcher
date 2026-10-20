@@ -70,6 +70,13 @@ def save_json(path: Path, data):
             time.sleep(delay)
 
 
+def iter_category_nodes(categories):
+    """Parcourt récursivement tous les nœuds de l'arbre."""
+    for category in categories:
+        yield category
+        yield from iter_category_nodes(category.get("children", []))
+
+
 
 def save_progress(
     status,
